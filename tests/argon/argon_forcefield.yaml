@@ -1,0 +1,18 @@
+atomtypes: [AR,]
+
+bonds:
+  (AR, AR):
+    k0: 0
+    req: 0
+
+lj:
+  AR:
+    sigma: 3.350
+    epsilon: 0.996
+
+electrostatics:
+  AR:
+    charge: 0.0
+
+masses:
+  AR: 39.95
