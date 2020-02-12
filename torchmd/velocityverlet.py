@@ -21,11 +21,11 @@ def second_VV(vel, force, mass, dt):
     Ekin = 0.5 * torch.sum(torch.sum(vel * vel, dim=1) * mass)
     return Ekin
 
-def velocityverlet(pos, mass, ev, niter, box, energies=("LJ", "Bonds"), device="cpu", externalCalc=()):
+def velocityverlet(pos, mass, ev, niter, box, energies=("LJ", "Bonds"), device="cpu", externalCalc=(),timestep=1):
     if not (isinstance(externalCalc, list) or isinstance(externalCalc, tuple)):
         externalCalc = [externalCalc,]
         
-    dt = 1.0/TIMEFACTOR
+    dt = timestep/TIMEFACTOR
     natoms = pos.shape[0]
 
     force = torch.zeros((natoms, 3)).to(device)
