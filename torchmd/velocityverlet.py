@@ -21,12 +21,12 @@ def second_VV(vel, force, mass, dt):
     Ekin = 0.5 * torch.sum(torch.sum(vel * vel, dim=1) * mass)
     return Ekin
 
-def velocityverlet(pos, mass, ev, niter, box, energies=("LJ", "Bonds")):
+def velocityverlet(pos, mass, ev, niter, box, energies=("LJ", "Bonds"), device="cpu"):
     dt = 1.0/TIMEFACTOR
     natoms = pos.shape[0]
 
-    force = torch.zeros((natoms, 3))
-    vel = torch.zeros((natoms, 3))
+    force = torch.zeros((natoms, 3)).to(device)
+    vel = torch.zeros((natoms, 3)).to(device)
     
     Ekin = 0
     Epot, _ = ev.evaluateEnergiesForces(pos, box, force, energies=energies)
