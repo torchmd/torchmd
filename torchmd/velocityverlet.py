@@ -21,7 +21,10 @@ def second_VV(vel, force, mass, dt):
     Ekin = 0.5 * torch.sum(torch.sum(vel * vel, dim=1) * mass)
     return Ekin
 
-def velocityverlet(pos, mass, ev, niter, box, energies=("LJ", "Bonds"), device="cpu"):
+def velocityverlet(pos, mass, ev, niter, box, energies=("LJ", "Bonds"), device="cpu", externalCalc=()):
+    if not (isinstance(externalCalc, list) or isinstance(externalCalc, tuple)):
+        externalCalc = [externalCalc,]
+        
     dt = 1.0/TIMEFACTOR
     natoms = pos.shape[0]
 
@@ -30,13 +33,24 @@ def velocityverlet(pos, mass, ev, niter, box, energies=("LJ", "Bonds"), device="
     
     Ekin = 0
     Epot, _ = ev.evaluateEnergiesForces(pos, box, force, energies=energies)
+    for ec in externalCalc:
+        ext_ene, ext_force = ec.calculate(pos, box)
+        EPot += ext_ene
+        force += ext_force
+
     print(f"{'Step':<10} {'Epot':<10} {'Ekin':<10} {'Etotal':<10} {'T':<10}")
     print(f"{'0':<10} {Epot:<10.4f} {Ekin:<10.4f} {Epot+Ekin:<10.4f} {' ':<10}")
 
     for n in range(niter):
         first_VV(pos, vel, force, mass, dt)
         force.zero_()
+
         Epot, _ = ev.evaluateEnergiesForces(pos, box, force, energies=energies)
+        for ec in externalCalc:
+            ext_ene, ext_force = ec.calculate(pos, box)
+            EPot += ext_ene
+            force += ext_force
+
         Ekin = second_VV(vel, force, mass, dt)
         T = kinetic_to_temp(Ekin, natoms)
         print(f"{n:<10d} {Epot:<10.4f} {Ekin:<10.4f} {Epot+Ekin:<10.4f} {T:<10.4f}")
