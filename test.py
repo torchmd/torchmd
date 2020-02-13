@@ -48,7 +48,7 @@ bonds = mol.bonds.astype(int).copy()
 ev = Evaluator("tests/argon/argon_forcefield.yaml", atom_types, bonds, device=device)
 
 atom_mass = ev.masses[:, None]
-traj = velocityverlet(atom_pos, atom_mass, ev, 10000, box, energies=("LJ"), device=device, timestep=10)
+traj = velocityverlet(atom_pos, atom_mass, ev, 10000, box, energies=("LJ"), device=device, timestep=10, trajfreq=100)
 
 mol.coords = traj
 mol.view()
