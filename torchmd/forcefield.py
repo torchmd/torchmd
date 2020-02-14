@@ -4,6 +4,7 @@ from torchmd.util import calculateDistances
 import yaml
 import numpy as np
 
+
 ELEC_FACTOR = 1 / (4 * const.pi * const.epsilon_0)  # Coulomb's constant
 ELEC_FACTOR *= const.elementary_charge ** 2  # Convert elementary charges to Coulombs
 ELEC_FACTOR /= const.angstrom  # Convert Angstroms to meters
@@ -108,6 +109,7 @@ class Evaluator:
 
         # masses
         self.masses = torch.tensor([ff["masses"][at] for at in atom_types]).to(device)
+
 
     def evaluateEnergiesForces(self, atom_pos, box, atom_force=None, energies=("LJ", "Electrostatics", "Bonds")):
         if "LJ" in energies and "Repulsion" in energies:
