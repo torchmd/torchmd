@@ -7,8 +7,8 @@ bonds:
 
 lj:
   AR:
-    sigma: 3.4
-    epsilon: -0.238
+    sigma: 3.345
+    epsilon: 0.238
 
 electrostatics:
   AR:
