@@ -147,7 +147,7 @@ class Evaluator:
     def evaluateEnergiesForces(
         self, atom_pos, box, atom_force=None, energies=("LJ", "Electrostatics", "Bonds")
     ):
-        if "LJ" in energies and ("Repulsion" in energies or "RepulsionCG" in energies):
+        if "LJ" in energies and ("Repulsion" in energies or "repulsionCG" in energies):
             raise RuntimeError("Can't have both LJ and Repulsion forces")
 
         pot = 0
@@ -167,7 +167,7 @@ class Evaluator:
                 direction_unitvec * bond_force_coeff[:, None]
             )
 
-        if "Electrostatics" in energies or "LJ" in energies or "Repulsion" in energies or "RepulsionCG" in energies:
+        if "Electrostatics" in energies or "LJ" in energies or "Repulsion" in energies or "repulsionCG" in energies:
             # Lazy mode: Do all vs all distances
             dist, direction_unitvec = calculateDistances(
                 atom_pos, self.ava_idx[:, 0], self.ava_idx[:, 1], box
@@ -209,7 +209,7 @@ class Evaluator:
                     direction_unitvec * rep_force_coeff[:, None]
                 )
                 
-            if "RepulsionCG" in energies:
+            if "repulsionCG" in energies:
                 rep_pot, rep_force_coeff = evaluateRepulsionCG(
                     dist, self.ava_idx, self.mapped_atom_types, self.B
                 )
