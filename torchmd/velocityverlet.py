@@ -43,17 +43,23 @@ def calculateMoleculeGroups(natoms, bonds, device):
 def velocityverlet(pos, mass, ev, niter, box, energies=("LJ", "Bonds"), device="cpu", externalCalc=(), timestep=1, trajfreq=1, outtraj="output.npy", bonds=None, wrapidx=None):
     if not (isinstance(externalCalc, list) or isinstance(externalCalc, tuple)):
         externalCalc = [externalCalc,]
+
+    pbc = True
+    if box is None or torch.all(box == 0):
+        pbc = False
         
     dt = timestep/TIMEFACTOR
     natoms = pos.shape[0]
 
-    molgroups, nongrouped = calculateMoleculeGroups(natoms, bonds, device)
+    if pbc:
+        molgroups, nongrouped = calculateMoleculeGroups(natoms, bonds, device)
 
     force = torch.zeros((natoms, 3)).to(device)
     vel = torch.zeros((natoms, 3)).to(device)
     
     Ekin = 0
-    wrap_coords(pos, box, wrapidx, molgroups, nongrouped)
+    if pbc:
+        wrap_coords(pos, box, wrapidx, molgroups, nongrouped)
     Epot, _ = ev.evaluateEnergiesForces(pos, box, force, energies=energies)
     for ec in externalCalc:
         ext_ene, ext_force = ec.calculate(pos, box)
@@ -69,7 +75,8 @@ def velocityverlet(pos, mass, ev, niter, box, energies=("LJ", "Bonds"), device="
     tqdm_iter = tqdm(range(niter))
     for n in tqdm_iter:
         first_VV(pos, vel, force, mass, dt)
-        wrap_coords(pos, box, wrapidx, molgroups, nongrouped)
+        if pbc:
+            wrap_coords(pos, box, wrapidx, molgroups, nongrouped)
         force.zero_()
 
         Epot, _ = ev.evaluateEnergiesForces(pos, box, force, energies=energies)
