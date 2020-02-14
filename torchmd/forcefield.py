@@ -91,7 +91,9 @@ class Evaluator:
 
         # bonds
         bond_params = []
-        for pair in bonds:
+        uqbonds = set([tuple(sorted(pair)) for pair in bonds])
+        uqbonds = [sorted(list(pair)) for pair in uqbonds]
+        for pair in uqbonds:
             pair_atomtype = f"({atom_types[pair[0]]}, {atom_types[pair[1]]})"
             inv_pair_atomtype = f"({atom_types[pair[1]]}, {atom_types[pair[0]]})"
             if pair_atomtype in ff["bonds"]:
@@ -102,7 +104,7 @@ class Evaluator:
                 raise RuntimeError(f"{pair_atomtype} doesn't have bond information in the FF")
             bond_params.append([bp["k0"], bp["req"]])
         self.bond_params = torch.tensor(bond_params).to(device)
-        self.bonds = torch.tensor(bonds).to(device)
+        self.bonds = torch.tensor(uqbonds).to(device)
 
         # masses
         self.masses = torch.tensor([ff["masses"][at] for at in atom_types]).to(device)
