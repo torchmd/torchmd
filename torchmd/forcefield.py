@@ -49,6 +49,17 @@ def evaluateRepulsion(dist, pair_indeces, atom_types, A, scale=1):  # LJ without
     force = (-12 * aa * rinv12) * rinv1 / scale
     return pot, force
 
+def evaluateRepulsionCG(dist, pair_indeces, atom_types, B, scale=1):  # Repulsion like from CGNet 
+    atomtype_indices = atom_types[pair_indeces]
+    bb = B[atomtype_indices[:, 0], atomtype_indices[:, 1]]
+
+    rinv1 = 1 / dist
+    rinv6 = rinv1 ** 6
+
+    pot = (bb * rinv6) / scale
+    force = (-6 * bb * rinv6) * rinv1 / scale
+    return pot, force
+
 
 def evaluateElectrostatics(dist, pair_indeces, atom_charges, scale=1):
     pot = (
@@ -136,7 +147,7 @@ class Evaluator:
     def evaluateEnergiesForces(
         self, atom_pos, box, atom_force=None, energies=("LJ", "Electrostatics", "Bonds")
     ):
-        if "LJ" in energies and "Repulsion" in energies:
+        if "LJ" in energies and ("Repulsion" in energies or "RepulsionCG" in energies):
             raise RuntimeError("Can't have both LJ and Repulsion forces")
 
         pot = 0
@@ -156,7 +167,7 @@ class Evaluator:
                 direction_unitvec * bond_force_coeff[:, None]
             )
 
-        if "Electrostatics" in energies or "LJ" in energies or "Repulsion" in energies:
+        if "Electrostatics" in energies or "LJ" in energies or "Repulsion" in energies or "RepulsionCG" in energies:
             # Lazy mode: Do all vs all distances
             dist, direction_unitvec = calculateDistances(
                 atom_pos, self.ava_idx[:, 0], self.ava_idx[:, 1], box
@@ -189,6 +200,18 @@ class Evaluator:
             if "Repulsion" in energies:
                 rep_pot, rep_force_coeff = evaluateRepulsion(
                     dist, self.ava_idx, self.mapped_atom_types, self.A
+                )
+                pot += rep_pot.sum()
+                atom_force[self.ava_idx[:, 0]] += (
+                    direction_unitvec * rep_force_coeff[:, None]
+                )
+                atom_force[self.ava_idx[:, 1]] -= (
+                    direction_unitvec * rep_force_coeff[:, None]
+                )
+                
+            if "RepulsionCG" in energies:
+                rep_pot, rep_force_coeff = evaluateRepulsionCG(
+                    dist, self.ava_idx, self.mapped_atom_types, self.B
                 )
                 pot += rep_pot.sum()
                 atom_force[self.ava_idx[:, 0]] += (
