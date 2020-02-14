@@ -74,8 +74,8 @@ class Evaluator:
         self.mapped_atom_types = torch.tensor([atomtype_map[at] for at in atom_types])
 
         # LJ parameters
-        sigma = np.array([ff["lj"][at]["sigma"] for at in sorted_keys])
-        epsilon = np.array([ff["lj"][at]["epsilon"] for at in sorted_keys])
+        sigma = np.array([ff["lj"][at]["sigma"] for at in sorted_keys],dtype=np.float32)
+        epsilon = np.array([ff["lj"][at]["epsilon"] for at in sorted_keys],dtype=np.float32)
         self.A, self.B = calculateAB(sigma, epsilon)
         self.A = torch.tensor(self.A).to(device)
         self.B = torch.tensor(self.B).to(device)
