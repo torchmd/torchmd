@@ -102,7 +102,7 @@ def velocityverlet(
     Epot, _ = ev.evaluateEnergiesForces(pos, box, force, energies=energies)
     for ec in externalCalc:
         ext_ene, ext_force = ec.calculate(pos, box)
-        EPot += ext_ene
+        Epot += ext_ene
         force += ext_force
 
     print(f"{'Step':<10} {'Epot':<10} {'Ekin':<10} {'Etotal':<10} {'T':<10}")
@@ -124,7 +124,7 @@ def velocityverlet(
         Epot, _ = ev.evaluateEnergiesForces(pos, box, force, energies=energies)
         for ec in externalCalc:
             ext_ene, ext_force = ec.calculate(pos, box)
-            EPot += ext_ene
+            Epot += ext_ene
             force += ext_force
 
         second_VV(vel, force, mass, dt)
