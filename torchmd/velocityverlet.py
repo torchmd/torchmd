@@ -13,8 +13,8 @@ def kinetic_to_temp(Ekin, nfree):
 
 def first_VV(pos, vel, force, mass, dt):
     accel = force / mass
-    pos += vel * dt + 0.5 * accel * dt * dt
     vel += 0.5 * dt * accel
+    pos += vel * dt + 0.5 * accel * dt * dt
 
 
 def second_VV(vel, force, mass, dt):
