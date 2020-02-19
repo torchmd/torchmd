@@ -8,8 +8,26 @@ from torchmd.wrapper import Wrapper
 from collections import namedtuple
 import numpy as np
 from tqdm import tqdm
+import argparse
 
-device = "cpu"
+
+def get_args():
+    parser = argparse.ArgumentParser(description='Training')
+    parser.add_argument('--lr', default=1e-4, type=float, help='learning rate')
+    parser.add_argument('--temp',  default=300,type=float, help='Temperature')
+    parser.add_argument('--device', default='cpu', help='Type of device, e.g. "cuda:1"')
+    parser.add_argument('--seed',type=int,default=1,help='random seed (default: 1)')
+
+    args = parser.parse_args()
+    return args
+
+
+args = get_args()
+torch.manual_seed(args.seed)
+torch.cuda.manual_seed_all(args.seed)
+
+
+device = torch.device(args.device)
 mol = Molecule("./tests/argon/argon_start.pdb")
 mol.atomtype[:] = "AR"
 atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze()).to(device)
@@ -31,10 +49,12 @@ wrapper = Wrapper(natoms,bonds,device)
 
 traj = []
 traj.append(system.pos.cpu().numpy())
-iterator = tqdm(range(10))
+iterator = tqdm(range(100))
 for i in iterator:
     Ekin,Epot,T = integrator.step(niter=10)
-    wrapper.wrap(system.pos,system.box)
+    #wrapper.wrap(system.pos,system.box)
     traj.append(system.pos.cpu().numpy())
     iterator.write(f"{i:<10d} {Epot:<10.4f} {Ekin:<10.4f} {Epot+Ekin:<10.4f} {T:<10.4f}")
     np.save('outpos.npy', np.stack(traj, axis=2)) #ideally we want to append
+
+
