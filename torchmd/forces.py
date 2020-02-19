@@ -4,25 +4,28 @@ from torchmd.util import calculateDistances
 import yaml
 import numpy as np
 
-from forcefield import Parameters
+from torchmd.forcefield import Parameters
 
 class Forces:
     nonbonded = ["Electrostatics","LJ","Repulsion","repulsionCG"]
 
-    def __init__(self, parameters,device):
+    def __init__(self, parameters, energies, device):
         self.par = parameters
-        natoms = len(parameters.masses)
-        self.ava_idx = self._make_indeces(natoms)
         self.device = device
+        self.energies = energies
+        self.natoms = len(parameters.masses)
+        self.ava_idx = self._make_indeces(self.natoms)
+        self.forces = torch.zeros(self.natoms, 3).to(self.device)
+        self.require_distances = any(f in self.nonbonded for f in self.energies)
 
-    def compute(self, pos, forces, energies=("Bonds"), box=None):
+    def compute(self, pos, box):
         pot = 0
-        #systems.zero_force()
-        if any(f in self.nonbonded for f in energies):
+        self.forces.zero_()
+        if self.require_distances:
             # Lazy mode: Do all vs all distances
             dist, direction_unitvec = calculateDistances(pos, self.ava_idx[:, 0], self.ava_idx[:, 1], box)
 
-        for v in energies:
+        for v in self.energies:
             if v=="Bonds":
                 dist, direction_unitvec = calculateDistances(pos, self.par.bonds[:, 0], self.par.bonds[:, 1], box)
                 E, force_coeff = evaluateBonds(dist, self.par.bond_params)
@@ -45,10 +48,10 @@ class Forces:
                 pairs = self.ava_idx
 
             pot += E.sum()
-            forces[pairs[:, 0]] += (direction_unitvec * force_coeff[:, None])
-            forces[pairs[:, 1]] -= (direction_unitvec * force_coeff[:, None])
+            self.forces[pairs[:, 0]] += (direction_unitvec * force_coeff[:, None])
+            self.forces[pairs[:, 1]] -= (direction_unitvec * force_coeff[:, None])
 
-        return pot, forces
+        return pot
 
     def _make_indeces(self,natoms):
         allvsall_indeces = []

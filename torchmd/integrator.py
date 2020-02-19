@@ -1,4 +1,5 @@
 
+import torch
 
 TIMEFACTOR = 48.88821
 BOLTZMAN = 0.001987191
@@ -18,18 +19,20 @@ def _second_VV(vel, force, mass, dt):
 
 
 class Integrator:
-    def __init__(self,system,forces,timestep):
+    def __init__(self,systems,forces,timestep):
         self.dt = timestep / TIMEFACTOR
-        self.system = system
+        self.systems = systems
         self.forces = forces
 
     def step(self, niter=1):
-        s = self.system
+        s = self.systems
+        masses = self.forces.par.masses
+        natoms = len(masses)
         for _ in range(niter):
-            _first_VV(s.pos,s.vel,s.force,s.mass,self.dt)
-            if self.forces is not None: self.forces.compute(s)
-            _second_VV(s.vel, s.force, s.mass, self.dt)
+            _first_VV(s.pos,s.vel,self.forces.forces, masses,self.dt)
+            pot = self.forces.compute(s.pos,s.box)
+            _second_VV(s.vel, self.forces.forces, masses, self.dt)
 
-        Ekin = 0.5 * torch.sum(torch.sum(s.vel * s.vel, dim=s.spacedim) * s.mass)
-        T = _kinetic_to_temp(Ekin, s.natoms)
-        return Ekin,T
+        Ekin = 0.5 * torch.sum(torch.sum(s.vel * s.vel, dim=1) * masses)
+        T = _kinetic_to_temp(Ekin, natoms)
+        return Ekin,pot,T

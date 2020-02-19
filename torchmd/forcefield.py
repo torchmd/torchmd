@@ -28,8 +28,9 @@ class Forcefield:
         par.mapped_atom_types = torch.tensor([atomtype_map[at] for at in atom_types]) 
         par.A,par.B=self.make_lj(atomtype_map)
         par.charges = self.make_charges(atom_types)
-        par.bond_params,par.bonds = self.make_bonds(bonds,atom_types)
         par.masses = self.make_masses(atom_types)
+        if bonds is not None:
+            par.bond_params,par.bonds = self.make_bonds(bonds,atom_types)
         return par
 
     def make_lj(self,atomtype_map):
@@ -66,7 +67,10 @@ class Forcefield:
         return bond_params,bonds
 
     def make_masses(self,atom_types):
-        return torch.tensor([self.ff["masses"][at] for at in atom_types]).to(self.device)
+        masses = torch.tensor([self.ff["masses"][at] for at in atom_types])
+        masses.unsqueeze_(1) #natoms,1
+        masses.to(self.device)
+        return masses
 
 
 def calculateAB(sigma, epsilon):
