@@ -1,3 +1,5 @@
+import torch
+
 class Wrapper:
     def __init__(self,natoms,bonds,device):
         self.groups, self.nongrouped = calculateMoleculeGroups(natoms, bonds, device)
