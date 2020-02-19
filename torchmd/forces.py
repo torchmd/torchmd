@@ -9,10 +9,11 @@ from forcefield import Parameters
 class Forces:
     nonbonded = ["Electrostatics","LJ","Repulsion","repulsionCG"]
 
-    def __init__(self, parameters):
+    def __init__(self, parameters,device):
         self.par = parameters
-        natoms = len()
+        natoms = len(parameters.masses)
         self.ava_idx = self._make_indeces(natoms)
+        self.device = device
 
     def compute(self, pos, forces, energies=("Bonds"), box=None):
         pot = 0
@@ -36,18 +37,18 @@ class Forces:
                 pairs = self.ava_idx
 
             if v=="Repulsion":
-                E, force_coeff = evaluateRepulsion(dist, self.ava_idx, self.mapped_atom_types, self.A)
+                E, force_coeff = evaluateRepulsion(dist, self.ava_idx, self.par.mapped_atom_types, self.par.A)
                 pairs = self.ava_idx
                 
             if v=="repulsionCG":
-                E, force_coeff = evaluateRepulsionCG(dist, self.ava_idx, self.mapped_atom_types, self.B)
+                E, force_coeff = evaluateRepulsionCG(dist, self.ava_idx, self.par.mapped_atom_types, self.par.B)
                 pairs = self.ava_idx
 
             pot += E.sum()
-            force[pairs[:, 0]] += (direction_unitvec * force_coeff[:, None])
-            force[pairs[:, 1]] -= (direction_unitvec * force_coeff[:, None])
+            forces[pairs[:, 0]] += (direction_unitvec * force_coeff[:, None])
+            forces[pairs[:, 1]] -= (direction_unitvec * force_coeff[:, None])
 
-        return pot, force
+        return pot, forces
 
     def _make_indeces(self,natoms):
         allvsall_indeces = []
