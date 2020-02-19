@@ -7,6 +7,7 @@ class Parameters:
     B=None
     bonds=None
     bond_params=None
+    
     charges = None
     masses =None
     mapped_atom_types=None
