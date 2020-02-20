@@ -47,8 +47,8 @@ class Forces:
                 pairs = self.ava_idx
 
             pot += E.sum()
-            self.forces[pairs[:, 0]] += (direction_unitvec * force_coeff[:, None])
-            self.forces[pairs[:, 1]] -= (direction_unitvec * force_coeff[:, None])
+            self.forces[pairs[:, 0]] -= (direction_unitvec * force_coeff[:, None])
+            self.forces[pairs[:, 1]] += (direction_unitvec * force_coeff[:, None])
 
         return pot
 
