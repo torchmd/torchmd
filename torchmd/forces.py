@@ -1,13 +1,12 @@
 from scipy import constants as const
 import torch
-from torchmd.util import calculateDistances
 import yaml
 import numpy as np
 
 from torchmd.forcefield import Parameters
 
 class Forces:
-    nonbonded = ["Electrostatics","LJ","Repulsion","repulsionCG"]
+    nonbonded = ["Electrostatics","LJ","Repulsion","RepulsionCG"]
 
     def __init__(self, parameters, energies, device):
         self.par = parameters
@@ -43,7 +42,7 @@ class Forces:
                 E, force_coeff = evaluateRepulsion(dist, self.ava_idx, self.par.mapped_atom_types, self.par.A)
                 pairs = self.ava_idx
                 
-            if v=="repulsionCG":
+            if v=="RepulsionCG":
                 E, force_coeff = evaluateRepulsionCG(dist, self.ava_idx, self.par.mapped_atom_types, self.par.B)
                 pairs = self.ava_idx
 
@@ -61,6 +60,19 @@ class Forces:
         ava_idx = torch.tensor(allvsall_indeces).to(self.device)
         return ava_idx
 
+
+def wrap_dist(dist, box):
+    if box is None or torch.all(box == 0):
+        wdist = dist
+    else:
+        wdist = dist - box[None, :] * torch.round(dist / box[None, :])
+    return wdist
+
+def calculateDistances(atom_pos, atom_idx1, atom_idx2, box):
+    direction_vec = wrap_dist(atom_pos[atom_idx1, :] - atom_pos[atom_idx2, :], box)
+    dist = torch.sqrt(torch.sum(direction_vec * direction_vec, dim=1))
+    direction_unitvec = direction_vec / dist[:, None]
+    return dist, direction_unitvec
 
 
 ELEC_FACTOR = 1 / (4 * const.pi * const.epsilon_0)  # Coulomb's constant

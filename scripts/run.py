@@ -28,11 +28,10 @@ torch.cuda.manual_seed_all(args.seed)
 
 
 device = torch.device(args.device)
-mol = Molecule("./tests/argon/argon_start.pdb")
+mol = Molecule("./tests/argon/argon2.pdb")
 mol.atomtype[:] = "AR"
 atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze()).to(device)
-box = mol.coords.max(axis=0) - mol.coords.min(axis=0)
-box = torch.tensor(box.squeeze()).to(device)
+box = None #torch.tensor([70,70,70]).to(device)
 atom_types = mol.atomtype
 natoms = len(atom_types)
 bonds = None #mol.bonds.astype(int).copy()
@@ -42,7 +41,7 @@ System = namedtuple('System', 'pos vel box')
 system = System(atom_pos,atom_vel,box) 
 forcefield = Forcefield("tests/argon/argon_forcefield.yaml",device)
 parameters = forcefield.create(atom_types,bonds=bonds)
-forces = Forces(parameters,['LJ'],device)
+forces = Forces(parameters,['RepulsionCG'],device)
 Epot = forces.compute(system.pos,system.box)
 integrator = Integrator(system,forces,timestep=1)
 wrapper = Wrapper(natoms,bonds,device)
@@ -51,7 +50,7 @@ traj = []
 traj.append(system.pos.cpu().numpy())
 iterator = tqdm(range(100))
 for i in iterator:
-    Ekin,Epot,T = integrator.step(niter=10)
+    Ekin,Epot,T = integrator.step(niter=1)
     #wrapper.wrap(system.pos,system.box)
     traj.append(system.pos.cpu().numpy())
     iterator.write(f"{i:<10d} {Epot:<10.4f} {Ekin:<10.4f} {Epot+Ekin:<10.4f} {T:<10.4f}")
