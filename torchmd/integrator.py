@@ -22,14 +22,21 @@ def external_compute(external,pos, box, Epot, force):
     Epot += ext_ene
     force += ext_force
 
+
+def langevin(vel,gamma,coeff,T,dt):
+    csi = np.random.normal()*coeff
+    vel += -gamma*vel*dt + csi 
+
 class Integrator:
-    def __init__(self,systems,forces,timestep,T=None):
+    def __init__(self,systems,forces,timestep,gamma=None,T=None):
         self.dt = timestep / TIMEFACTOR
         self.systems = systems
         self.forces = forces
         if T is not None:
-            raise NotImplementedError
-            #TODO: Add Langevin thermostat
+            self.T = T
+            M=self.forces.masses
+            self.vcoeff=torch.sqrt(2.0*gamma/M*BOLTZMAN*T*self.dt)
+
 
     def step(self, niter=1, external=None):
         s = self.systems
