@@ -14,12 +14,18 @@ import argparse
 def get_args():
     parser = argparse.ArgumentParser(description='Training')
     parser.add_argument('--timestep', default=10, type=float, help='Timestep in fs')
-    parser.add_argument('--temp',  default=300,type=float, help='Temperature')
+    parser.add_argument('--temperature',  default=None,type=float, help='Temperature')
+    parser.add_argument('--gamma',  default=0.1,type=float, help='Langevin relaxation ps^-1')
     parser.add_argument('--device', default='cpu', help='Type of device, e.g. "cuda:1"')
     parser.add_argument('--seed',type=int,default=1,help='random seed (default: 1)')
     parser.add_argument('--output-period',type=int,default=10,help='Save trajectory and print output every period')
+    parser.add_argument('--steps',type=int,default=1000,help='Save trajectory and print output every period')
 
     args = parser.parse_args()
+
+    if args.steps%args.output_period!=0:
+        raise ValueError('Steps must be multiple of output-period.')
+
     return args
 
 
@@ -35,7 +41,7 @@ atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze()).to(device)
 box = torch.tensor([65,65,65]).to(device)
 atom_types = mol.atomtype
 natoms = len(atom_types)
-bonds = None #mol.bonds.astype(int).copy()
+bonds = mol.bonds.astype(int).copy()
 atom_vel = torch.zeros((natoms,3)).to(device)
 
 System = namedtuple('System', 'pos vel box')
@@ -44,12 +50,12 @@ forcefield = Forcefield("tests/argon/argon_forcefield.yaml",device)
 parameters = forcefield.create(atom_types,bonds=bonds)
 forces = Forces(parameters,['RepulsionCG'],device)
 Epot = forces.compute(system.pos,system.box)
-integrator = Integrator(system,forces,timestep=args.timestep)
+integrator = Integrator(system,forces,timestep=args.timestep,gamma=args.gamma,T=args.temperature)
 wrapper = Wrapper(natoms,bonds,device)
 
 traj = []
 traj.append(system.pos.cpu().numpy())
-iterator = tqdm(range(1000))
+iterator = tqdm(range(int(args.steps/args.output_period)))
 for i in iterator:
     Ekin,Epot,T = integrator.step(niter=args.output_period)
     wrapper.wrap(system.pos,system.box)
