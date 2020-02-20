@@ -34,7 +34,7 @@ class Integrator:
         self.forces = forces
         if T is not None:
             self.T = T
-            M=self.forces.masses
+            M=self.forces.par.masses
             self.vcoeff=torch.sqrt(2.0*gamma/M*BOLTZMAN*T*self.dt)
 
 
