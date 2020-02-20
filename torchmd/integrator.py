@@ -23,7 +23,7 @@ def external_compute(external,pos, box, Epot, force):
     force += ext_force
 
 def langevin(vel,gamma,coeff,dt,device):
-    csi = torch.randn_like(coeff).to(device)*coeff
+    csi = torch.randn_like(vel).to(device)*coeff
     vel += -gamma*vel*dt + csi 
 
 PICOSEC2TIMEU=1000.0/TIMEFACTOR
