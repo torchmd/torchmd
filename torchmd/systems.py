@@ -1,4 +1,7 @@
 import torch
+from collections import namedtuple
+
+System = namedtuple('System', 'pos vel box')
 
 class Systems:
     #the spacedimension
