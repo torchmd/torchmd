@@ -26,6 +26,7 @@ def get_args():
     parser.add_argument('--output-period',type=int,default=10,help='Save trajectory and print output every period')
     parser.add_argument('--steps',type=int,default=10000,help='Save trajectory and print output every period')
     parser.add_argument('--log-dir', '-l', default='./', help='Log directory')
+    parser.add_argument('--output', default='output', help='Output file for trajectory')
 
 
     args = parser.parse_args()
@@ -71,7 +72,7 @@ for i in iterator:
     traj.append(system.pos.cpu().numpy().copy())
     logs.write_row({'iter':i*args.output_period,'fs':i*args.output_period*args.timestep,'epot':Epot.item(),
                         'ekin':Ekin.item(),'etot':Epot.item()+Ekin.item(),'T':T.item()})
-    np.save('outpos.npy', np.stack(traj, axis=2)) #ideally we want to append
+    np.save(args.output, np.stack(traj, axis=2)) #ideally we want to append
     
 
 
