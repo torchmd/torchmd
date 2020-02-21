@@ -16,7 +16,8 @@ def get_args():
     parser = argparse.ArgumentParser(description='Training')
     parser.add_argument('--timestep', default=10, type=float, help='Timestep in fs')
     parser.add_argument('--temperature',  default=300,type=float, help='Temperature')
-    parser.add_argument('--gamma',  default=0.1,type=float, help='Langevin relaxation ps^-1')
+    parser.add_argument('--langevin-temperature',  default=0,type=float, help='Temperature')
+    parser.add_argument('--langevin-gamma',  default=0.1,type=float, help='Langevin relaxation ps^-1')
     parser.add_argument('--device', default='cpu', help='Type of device, e.g. "cuda:1"')
     parser.add_argument('--seed',type=int,default=1,help='random seed (default: 1)')
     parser.add_argument('--output-period',type=int,default=1,help='Save trajectory and print output every period')
@@ -53,7 +54,7 @@ System = namedtuple('System', 'pos vel box')
 system = System(atom_pos,atom_vel,box) 
 forces = Forces(parameters,['LJ'],device)
 Epot = forces.compute(system.pos,system.box)
-integrator = Integrator(system,forces,args.timestep,args.device,gamma=args.gamma,T=args.temperature)
+integrator = Integrator(system,forces,args.timestep,args.device,gamma=args.langevin_gamma,T=args.langevin_temperature)
 wrapper = Wrapper(natoms,bonds,device)
 
 traj = []

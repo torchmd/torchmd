@@ -5,7 +5,8 @@ TIMEFACTOR = 48.88821
 BOLTZMAN = 0.001987191
 
 def kinetic_energy(masses,vel):
-    return 0.5 * torch.sum(torch.sum(vel * vel, dim=1)) * masses
+    Ekin = torch.sum(0.5 * torch.sum(vel * vel, dim=1,keepdim=True) * masses)
+    return Ekin
 
 def maxwell_boltzmann(masses,T):
     natoms = len(masses)
