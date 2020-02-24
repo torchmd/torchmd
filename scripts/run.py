@@ -68,9 +68,9 @@ integrator = Integrator(system,forces,args.timestep,args.device,gamma=args.lange
 wrapper = Wrapper(natoms,bonds,device)
 
 traj = []
-traj.append(system.pos.cpu().numpy())
+traj.append(system.pos.cpu().numpy().copy())
 logs = LogWriter(args.log_dir,keys=('iter','ns','epot','ekin','etot','T'))
-iterator = tqdm(range(int(args.steps/args.output_period)))
+iterator = tqdm(range(1,int(args.steps/args.output_period)))
 for i in iterator:
     Ekin,Epot,T = integrator.step(niter=args.output_period)
     #wrapper.wrap(system.pos,system.box)
