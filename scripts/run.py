@@ -12,6 +12,7 @@ import argparse
 import math
 from torchmd.integrator import maxwell_boltzmann
 from torchmd.utils import save_argparse, LogWriter
+FS2NS=1.0/1000000.0
 
 def get_args():
     parser = argparse.ArgumentParser(description='Training')
@@ -70,7 +71,7 @@ for i in iterator:
     Ekin,Epot,T = integrator.step(niter=args.output_period)
     #wrapper.wrap(system.pos,system.box)
     traj.append(system.pos.cpu().numpy().copy())
-    logs.write_row({'iter':i*args.output_period,'fs':i*args.output_period*args.timestep,'epot':Epot.item(),
+    logs.write_row({'iter':i*args.output_period,'ns':FS2NS*i*args.output_period*args.timestep,'epot':Epot.item(),
                         'ekin':Ekin.item(),'etot':Epot.item()+Ekin.item(),'T':T.item()})
     np.save(os.path.join(args.log_dir,args.output), np.stack(traj, axis=2)) #ideally we want to append
     
