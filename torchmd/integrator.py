@@ -25,10 +25,6 @@ def _second_VV(vel, force, mass, dt):
     accel = force / mass
     vel += 0.5 * dt * accel
 
-def external_compute(external,pos, box, Epot, force):
-    ext_ene, ext_force = external.calculate(pos, box)
-    Epot += ext_ene
-    force += ext_force
 
 def langevin(vel,gamma,coeff,dt,device):
     csi = torch.randn_like(vel).to(device)*coeff
@@ -49,14 +45,13 @@ class Integrator:
             self.vcoeff=torch.sqrt(2.0*gamma/M*BOLTZMAN*T*self.dt).to(device)
 
 
-    def step(self, niter=1, external=None):
+    def step(self, niter=1):
         s = self.systems
         masses = self.forces.par.masses
         natoms = len(masses)
         for _ in range(niter):
             _first_VV(s.pos,s.vel,self.forces.forces, masses,self.dt)
             pot = self.forces.compute(s.pos,s.box)
-            if external is not None: external_compute(external, s.pos, s.box, pot, self.forces.forces)
             if self.T: langevin(s.vel,self.gamma,self.vcoeff,self.dt,self.device)
             _second_VV(s.vel, self.forces.forces, masses, self.dt)
 

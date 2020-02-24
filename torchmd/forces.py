@@ -8,7 +8,7 @@ from torchmd.forcefield import Parameters
 class Forces:
     nonbonded = ["Electrostatics","LJ","Repulsion","RepulsionCG"]
 
-    def __init__(self, parameters, energies, device):
+    def __init__(self, parameters, energies, device, external=None):
         self.par = parameters
         self.device = device
         self.energies = energies
@@ -16,6 +16,7 @@ class Forces:
         self.ava_idx = self._make_indeces(self.natoms)
         self.forces = torch.zeros(self.natoms, 3).to(self.device)
         self.require_distances = any(f in self.nonbonded for f in self.energies)
+        self.external = external
 
     def compute(self, pos, box):
         pot = 0
@@ -48,6 +49,9 @@ class Forces:
             self.forces[pairs[:, 0]] -= (direction_unitvec * force_coeff[:, None])
             self.forces[pairs[:, 1]] += (direction_unitvec * force_coeff[:, None])
 
+        if self.external:
+            external_compute(self.external,pos,box,pot,self.forces) 
+
         return pot
 
     def _make_indeces(self,natoms):
@@ -78,6 +82,10 @@ ELEC_FACTOR *= const.elementary_charge ** 2  # Convert elementary charges to Cou
 ELEC_FACTOR /= const.angstrom  # Convert Angstroms to meters
 ELEC_FACTOR *= const.Avogadro / (const.kilo * const.calorie)  # Convert J to kcal/mol
 
+def external_compute(external,pos, box, Epot, force):
+    ext_ene, ext_force = external.calculate(pos, box)
+    Epot += ext_ene
+    force += ext_force
 
 def evaluateLJ(dist, pair_indeces, atom_types, A, B, scale=1):
     atomtype_indices = atom_types[pair_indeces]
