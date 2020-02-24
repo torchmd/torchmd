@@ -1,0 +1,6 @@
+MODEL        1
+ATOM      1 AR   AR      1      51.580  69.230  34.130  1.00  0.00          AR  
+ATOM      2 AR   AR      2      54.580  69.230  34.130  1.00  0.00          AR  
+CONECT 1 2
+ENDMDL
+END
