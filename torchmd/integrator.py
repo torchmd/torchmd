@@ -55,6 +55,6 @@ class Integrator:
             if self.T: langevin(s.vel,self.gamma,self.vcoeff,self.dt,self.device)
             _second_VV(s.vel, self.forces.forces, masses, self.dt)
 
-        Ekin = kinetic_energy(masses,s.vel)
+        Ekin = kinetic_energy(masses,s.vel).item()
         T = kinetic_to_temp(Ekin, natoms)
         return Ekin,pot,T

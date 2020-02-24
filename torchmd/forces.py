@@ -42,10 +42,12 @@ class Forces:
             elif v=="RepulsionCG":
                 E, force_coeff = evaluateRepulsionCG(dist, self.ava_idx, self.par.mapped_atom_types, self.par.B)
                 pairs = self.ava_idx
+            elif v=='': #to allow no terms
+                continue
             else:
                 raise ValueError("Force term {} of {} not available".format(v,self.energies))
 
-            pot += E.sum()
+            pot += E.cpu().sum().item()
             self.forces[pairs[:, 0]] -= (direction_unitvec * force_coeff[:, None])
             self.forces[pairs[:, 1]] += (direction_unitvec * force_coeff[:, None])
 
@@ -84,7 +86,7 @@ ELEC_FACTOR *= const.Avogadro / (const.kilo * const.calorie)  # Convert J to kca
 
 def external_compute(external,pos, box, Epot, force):
     ext_ene, ext_force = external.calculate(pos, box)
-    Epot += ext_ene
+    Epot += ext_ene.item()
     force += ext_force
 
 def evaluateLJ(dist, pair_indeces, atom_types, A, B, scale=1):
