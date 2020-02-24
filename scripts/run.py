@@ -28,9 +28,12 @@ def get_args():
     parser.add_argument('--steps',type=int,default=10000,help='Save trajectory and print output every period')
     parser.add_argument('--log-dir', '-l', default='./', help='Log directory')
     parser.add_argument('--output', default='output', help='Output file for trajectory')
-
-
+    parser.add_argument('--forceterms', nargs='+', default="LJ", help='Forceterms to include,e.g. Bonds LJ')
+    
     args = parser.parse_args()
+
+    if isinstance(args.forceterms, str):
+        args.forceterms = [args.forceterms]
 
     if args.steps%args.output_period!=0:
         raise ValueError('Steps must be multiple of output-period.')
@@ -58,7 +61,8 @@ parameters = forcefield.create(atom_types,bonds=bonds)
 
 atom_vel = maxwell_boltzmann(parameters.masses,args.temperature).to(device)
 system = System(atom_pos,atom_vel,box) 
-forces = Forces(parameters,['LJ'],device)
+print("Force terms: ",args.forceterms)
+forces = Forces(parameters,args.forceterms,device)
 Epot = forces.compute(system.pos,system.box)
 integrator = Integrator(system,forces,args.timestep,args.device,gamma=args.langevin_gamma,T=args.langevin_temperature)
 wrapper = Wrapper(natoms,bonds,device)

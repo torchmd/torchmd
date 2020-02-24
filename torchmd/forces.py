@@ -29,22 +29,20 @@ class Forces:
                 dist, direction_unitvec = calculateDistances(pos, self.par.bonds[:, 0], self.par.bonds[:, 1], box)
                 E, force_coeff = evaluateBonds(dist, self.par.bond_params)
                 pairs = self.par.bonds
-
-            if v=="Electrostatics":
+            elif v=="Electrostatics":
                 E, force_coeff = evaluateElectrostatics(dist, self.ava_idx, self.par.charges)
                 pairs = self.ava_idx
-
-            if v=="LJ":
+            elif v=="LJ":
                 E, force_coeff = evaluateLJ(dist, self.ava_idx, self.par.mapped_atom_types, self.par.A, self.par.B)
                 pairs = self.ava_idx
-
-            if v=="Repulsion":
+            elif v=="Repulsion":
                 E, force_coeff = evaluateRepulsion(dist, self.ava_idx, self.par.mapped_atom_types, self.par.A)
-                pairs = self.ava_idx
-                
-            if v=="RepulsionCG":
+                pairs = self.ava_idx  
+            elif v=="RepulsionCG":
                 E, force_coeff = evaluateRepulsionCG(dist, self.ava_idx, self.par.mapped_atom_types, self.par.B)
                 pairs = self.ava_idx
+            else:
+                raise ValueError("Force term {} of {} not available".format(v,self.energies))
 
             pot += E.sum()
             self.forces[pairs[:, 0]] -= (direction_unitvec * force_coeff[:, None])
