@@ -72,7 +72,7 @@ for i in iterator:
     traj.append(system.pos.cpu().numpy().copy())
     logs.write_row({'iter':i*args.output_period,'fs':i*args.output_period*args.timestep,'epot':Epot.item(),
                         'ekin':Ekin.item(),'etot':Epot.item()+Ekin.item(),'T':T.item()})
-    np.save(args.output, np.stack(traj, axis=2)) #ideally we want to append
+    np.save(os.path.join(args.log_dir,args.output), np.stack(traj, axis=2)) #ideally we want to append
     
 
 
