@@ -44,17 +44,23 @@ class LogWriter(object):
             for f in files:
                 os.remove(f)
 
-
 class LoadFromFile(argparse.Action):
 #parser.add_argument('--file', type=open, action=LoadFromFile)
     def __call__ (self, parser, namespace, values, option_string = None):
         with values as f:
-            parser.parse_args(f.read().split('='), namespace)
+            input=f.read()
+            input=input.rstrip()
+            for lines in input.split('\n'):
+                k,v=lines.split('=')
+                typ=type(namespace.__dict__[k])
+                v= typ(v) if typ is not None else v
+                namespace.__dict__[k]=v
 
 
-def save_argparse(args,filename):
+def save_argparse(args,filename,exclude=None):
     with open(filename, 'w') as f:
         for k,v in args.__dict__.items():
+            if k is exclude: continue
             f.write(f'{k}={v}\n')
 
 

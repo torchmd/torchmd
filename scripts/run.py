@@ -11,42 +11,43 @@ from tqdm import tqdm
 import argparse
 import math
 from torchmd.integrator import maxwell_boltzmann
-from torchmd.utils import save_argparse, LogWriter
+from torchmd.utils import save_argparse, LogWriter,LoadFromFile
 FS2NS=1.0/1000000.0
 
 def get_args():
-    parser = argparse.ArgumentParser(description='Training')
+    parser = argparse.ArgumentParser(description='TorchMD',prefix_chars='--')
+    parser.add_argument('--conf', type=open, action=LoadFromFile, help='Use a configuration file')
     parser.add_argument('--timestep', default=1, type=float, help='Timestep in fs')
-    parser.add_argument('--temperature',  default=300,type=float, help='Temperature')
-    parser.add_argument('--langevin-temperature',  default=0,type=float, help='Temperature')
+    parser.add_argument('--temperature',  default=300,type=float, help='Temperature in K')
+    parser.add_argument('--langevin-temperature',  default=0,type=float, help='Temperature in K')
     parser.add_argument('--langevin-gamma',  default=0.1,type=float, help='Langevin relaxation ps^-1')
     parser.add_argument('--device', default='cpu', help='Type of device, e.g. "cuda:1"')
     parser.add_argument('--structure', default='./tests/argon/argon_start.pdb', help='Input PDB')
     parser.add_argument('--forcefield', default="tests/argon/argon_forcefield.yaml", help='Forcefield .yaml file')
     parser.add_argument('--seed',type=int,default=1,help='random seed (default: 1)')
-    parser.add_argument('--output-period',type=int,default=10,help='Save trajectory and print output every period')
-    parser.add_argument('--steps',type=int,default=10000,help='Save trajectory and print output every period')
-    parser.add_argument('--log-dir', '-l', default='./', help='Log directory')
-    parser.add_argument('--output', default='output', help='Output file for trajectory')
-    parser.add_argument('--forceterms', nargs='+', default="LJ", help='Forceterms to include,e.g. Bonds LJ')
+    parser.add_argument('--output-period',type=int,default=10,help='Save trajectory and print monitor.csv every period')
+    parser.add_argument('--steps',type=int,default=10000,help='Total number of simulation steps')
+    parser.add_argument('--log-dir', default='./', help='Log directory')
+    parser.add_argument('--output', default='output', help='Output filename for trajectory')
+    parser.add_argument('--forceterms', nargs='+', default="LJ", help='Forceterms to include, e.g. --forceterms Bonds LJ')
     
     args = parser.parse_args()
+    os.makedirs(args.log_dir,exist_ok=True)
+    save_argparse(args,os.path.join(args.log_dir,'input.conf'),exclude='conf')
 
     if isinstance(args.forceterms, str):
         args.forceterms = [args.forceterms]
-
     if args.steps%args.output_period!=0:
         raise ValueError('Steps must be multiple of output-period.')
-
-    save_argparse(args,os.path.join(args.log_dir,'input.conf'))
 
     return args
 
 args = get_args()
+
+
 torch.manual_seed(args.seed)
 torch.cuda.manual_seed_all(args.seed)
 device = torch.device(args.device)
-
 mol = Molecule(args.structure)
 mol.atomtype[:] = "AR"  #TODO: To fix this!!!
 atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze()).to(device)
@@ -54,7 +55,6 @@ box = torch.tensor([mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c
 atom_types = mol.atomtype
 natoms = len(atom_types)
 bonds = mol.bonds.astype(int).copy()
-
 
 forcefield = Forcefield(args.forcefield,device)
 parameters = forcefield.create(atom_types,bonds=bonds)
