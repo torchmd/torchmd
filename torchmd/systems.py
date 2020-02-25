@@ -1,7 +1,13 @@
 import torch
-from collections import namedtuple
 
-System = namedtuple('System', 'pos vel box')
+#from collections import namedtuple
+#System = namedtuple('System', 'pos vel box')
+class System:
+    def __init__(self,pos,vel,box,device):
+        self.pos = pos.to(device)
+        self.vel = vel.to(device)
+        self.box = box.to(device)
+
 
 class Systems:
     #the spacedimension

@@ -12,13 +12,20 @@ class Parameters:
     masses =None
     mapped_atom_types=None
 
+    def to_(self,device):
+        self.A = self.A.to(device)
+        self.B = self.B.to(device)
+        self.charges = self.charges.to(device)
+        self.bonds = self.bonds.to(device)
+        self.bond_params = self.bond_params.to(device)
+        self.masses = self.masses.to(device)
+
 class Forcefield:
     '''
     This class takes as input the yaml forcefield file, the atom_types and outputs the system Parameters
     '''
-    def __init__(self,filename,device):
+    def __init__(self,filename):
         self.ff = yaml.load(open(filename), Loader=yaml.FullLoader)
-        self.device = device
 
     def create(self,atom_types,bonds=None):
         atomtype_map = {}
@@ -38,13 +45,13 @@ class Forcefield:
         sigma = np.array([self.ff["lj"][at]["sigma"] for at in sorted_keys], dtype=np.float32)
         epsilon = np.array([self.ff["lj"][at]["epsilon"] for at in sorted_keys], dtype=np.float32)
         A, B = calculateAB(sigma, epsilon)
-        A = torch.tensor(A).to(self.device)
-        B = torch.tensor(B).to(self.device)
+        A = torch.tensor(A)
+        B = torch.tensor(B)
         return A,B
-
+        
         
     def make_charges(self,atom_types):
-        return torch.tensor([self.ff["electrostatics"][at]["charge"] for at in atom_types]).to(self.device)
+        return torch.tensor([self.ff["electrostatics"][at]["charge"] for at in atom_types])
 
     def make_bonds(self, bonds, atom_types):
         bond_params = []
@@ -62,14 +69,13 @@ class Forcefield:
                     f"{pair_atomtype} doesn't have bond information in the FF"
                 )
             bond_params.append([bp["k0"], bp["req"]])
-        bond_params = torch.tensor(bond_params).to(self.device)
-        bonds = torch.tensor(uqbonds).to(self.device)
+        bond_params = torch.tensor(bond_params)
+        bonds = torch.tensor(uqbonds)
         return bond_params,bonds
 
     def make_masses(self,atom_types):
         masses = torch.tensor([self.ff["masses"][at] for at in atom_types])
         masses.unsqueeze_(1) #natoms,1
-        masses.to(self.device)
         return masses
 
 

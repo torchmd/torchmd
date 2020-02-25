@@ -10,6 +10,7 @@ class Forces:
 
     def __init__(self, parameters, energies, device, external=None):
         self.par = parameters
+        self.par.to_(device) #TODO: I should really copy to gpu not update
         self.device = device
         self.energies = energies
         self.natoms = len(parameters.masses)

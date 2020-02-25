@@ -16,10 +16,10 @@ FS2NS=1.0/1000000.0
 
 def get_args():
     parser = argparse.ArgumentParser(description='TorchMD',prefix_chars='--')
-    parser.add_argument('--conf', type=open, action=LoadFromFile, help='Use a configuration file')
+    parser.add_argument('--conf', type=open, action=LoadFromFile, help='Use a configuration file, e.g. python run.py --conf input.conf')
     parser.add_argument('--timestep', default=1, type=float, help='Timestep in fs')
-    parser.add_argument('--temperature',  default=300,type=float, help='Temperature in K')
-    parser.add_argument('--langevin-temperature',  default=0,type=float, help='Temperature in K')
+    parser.add_argument('--temperature',  default=300,type=float, help='Assign velocity from initial temperature in K')
+    parser.add_argument('--langevin-temperature',  default=0,type=float, help='Temperature in K of the thermostat')
     parser.add_argument('--langevin-gamma',  default=0.1,type=float, help='Langevin relaxation ps^-1')
     parser.add_argument('--device', default='cpu', help='Type of device, e.g. "cuda:1"')
     parser.add_argument('--structure', default='./tests/argon/argon_start.pdb', help='Input PDB')
@@ -50,20 +50,20 @@ torch.cuda.manual_seed_all(args.seed)
 device = torch.device(args.device)
 mol = Molecule(args.structure)
 mol.atomtype[:] = "AR"  #TODO: To fix this!!!
-atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze()).to(device)
-box = torch.tensor([mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']]).to(device)
+atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze())
+box = torch.tensor([mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']])
 atom_types = mol.atomtype
 natoms = len(atom_types)
 bonds = mol.bonds.astype(int).copy()
 
-forcefield = Forcefield(args.forcefield,device)
+print("Force terms: ",args.forceterms)
+forcefield = Forcefield(args.forcefield)
 parameters = forcefield.create(atom_types,bonds=bonds)
 
-atom_vel = maxwell_boltzmann(parameters.masses,args.temperature).to(device)
-system = System(atom_pos,atom_vel,box) 
-print("Force terms: ",args.forceterms)
+atom_vel = maxwell_boltzmann(parameters.masses,args.temperature)
+system = System(atom_pos,atom_vel,box,device)
 forces = Forces(parameters,args.forceterms,device,external=None)
-integrator = Integrator(system,forces,args.timestep,args.device,gamma=args.langevin_gamma,T=args.langevin_temperature)
+integrator = Integrator(system,forces,args.timestep,device,gamma=args.langevin_gamma,T=args.langevin_temperature)
 wrapper = Wrapper(natoms,bonds,device)
 
 traj = []
