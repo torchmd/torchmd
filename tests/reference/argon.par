@@ -1,0 +1,16 @@
+*>CHARMM22 All-Hydrogen Parameter File for Proteins and Lipids <<
+NONBONDED nbxmod 5 atom cdiel shift vatom vdistance vswitch -
+cutnb 14.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5
+                !adm jr., 5/08/91, suggested cutoff scheme
+!
+!V(Lennard-Jones) = Eps,i,j[(Rmin,i,j/ri,j)**12 - 2(Rmin,i,j/ri,j)**6]
+!
+!epsilon: kcal/mole, Eps,i,j = sqrt(eps,i * eps,j)
+!Rmin/2: A, Rmin,i,j = Rmin/2,i + Rmin/2,j
+!
+!atom ignored epsilon Rmin/2 ignored eps,1-4 Rmin/2,1-4
+!
+!Argon
+AR 0.000000 -0.238000 1.908100 ! ALLOW PEP POL ARO
+                ! NMA pure solvent, adm jr., 3/3/93
+END

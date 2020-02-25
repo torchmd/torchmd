@@ -1,0 +1,8 @@
+*>>>>>> CHARMM topology for Argon <<<<<<<<<<
+27 1
+MASS 1 AR 39.948 AR ! Argon
+RESI ARA 0.00 !Argon
+GROUP
+ATOM AR AR 0.00
+PATCHING FIRST NONE LAST NONE
+END
