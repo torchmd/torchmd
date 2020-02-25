@@ -73,7 +73,7 @@ logs = LogWriter(args.log_dir,keys=('iter','ns','epot','ekin','etot','T'))
 iterator = tqdm(range(1,int(args.steps/args.output_period)))
 for i in iterator:
     Ekin,Epot,T = integrator.step(niter=args.output_period)
-    #wrapper.wrap(system.pos,system.box)
+    wrapper.wrap(system.pos,system.box)
     traj.append(system.pos.cpu().numpy().copy())
     logs.write_row({'iter':i*args.output_period,'ns':FS2NS*i*args.output_period*args.timestep,'epot':Epot,
                         'ekin':Ekin,'etot':Epot+Ekin,'T':T})
