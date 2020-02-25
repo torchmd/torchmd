@@ -3,6 +3,6 @@ REMARK    THIS IS A SIMULATION BOX
 CRYST1   77.395   77.395   77.395  90.00  90.00  90.00 P 1           1
 MODEL        1
 ATOM      1  AR   AR     1      51.580  69.230  34.130  1.00  0.00
-ATOM      2  AR   AR     2      53.580  69.230  34.130  1.00  0.00
+ATOM      2  AR   AR     2      54.580  69.230  34.130  1.00  0.00
 TER
 ENDMDL

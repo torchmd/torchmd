@@ -63,14 +63,15 @@ atom_vel = maxwell_boltzmann(parameters.masses,args.temperature).to(device)
 system = System(atom_pos,atom_vel,box) 
 print("Force terms: ",args.forceterms)
 forces = Forces(parameters,args.forceterms,device,external=None)
-Epot = forces.compute(system.pos,system.box)
 integrator = Integrator(system,forces,args.timestep,args.device,gamma=args.langevin_gamma,T=args.langevin_temperature)
 wrapper = Wrapper(natoms,bonds,device)
 
 traj = []
+wrapper.wrap(system.pos,system.box)
 traj.append(system.pos.cpu().numpy().copy())
 logs = LogWriter(args.log_dir,keys=('iter','ns','epot','ekin','etot','T'))
 iterator = tqdm(range(1,int(args.steps/args.output_period)))
+Epot = forces.compute(system.pos,system.box)
 for i in iterator:
     Ekin,Epot,T = integrator.step(niter=args.output_period)
     wrapper.wrap(system.pos,system.box)
