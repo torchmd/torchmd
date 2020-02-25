@@ -52,7 +52,9 @@ class Forces:
             self.forces[pairs[:, 1]] += (direction_unitvec * force_coeff[:, None])
 
         if self.external:
-            external_compute(self.external,pos,box,pot,self.forces) 
+            ext_ene, ext_force = self.external.calculate(pos, box)
+            pot += ext_ene.item()
+            self.forces += ext_force
 
         return pot
 
@@ -84,10 +86,6 @@ ELEC_FACTOR *= const.elementary_charge ** 2  # Convert elementary charges to Cou
 ELEC_FACTOR /= const.angstrom  # Convert Angstroms to meters
 ELEC_FACTOR *= const.Avogadro / (const.kilo * const.calorie)  # Convert J to kcal/mol
 
-def external_compute(external,pos, box, Epot, force):
-    ext_ene, ext_force = external.calculate(pos, box)
-    Epot += ext_ene.item()
-    force += ext_force
 
 def evaluateLJ(dist, pair_indeces, atom_types, A, B, scale=1):
     atomtype_indices = atom_types[pair_indeces]
