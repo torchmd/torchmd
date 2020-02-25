@@ -1,0 +1,38 @@
+PSF
+
+       5 !NTITLE
+ REMARKS original generated structure x-plor psf file
+ REMARKS topology topologies/0.argon.rtf 
+ REMARKS topology topologies/1.top_all36_prot_arg0.rtf 
+ REMARKS topology topologies/2.top_ions_won.rtf 
+ REMARKS segment A { first NONE; last NONE; auto none  }
+
+       2 !NATOM
+       1 A    1    ARA  AR   AR     0.000000       39.9480           0
+       2 A    2    ARA  AR   AR     0.000000       39.9480           0
+
+       0 !NBOND: bonds
+
+
+       0 !NTHETA: angles
+
+
+       0 !NPHI: dihedrals
+
+
+       0 !NIMPHI: impropers
+
+
+       0 !NDON: donors
+
+
+       0 !NACC: acceptors
+
+
+       0 !NNB
+
+       0       0
+
+       1       0 !NGRP
+       0       0       0
+
