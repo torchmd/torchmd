@@ -48,8 +48,8 @@ class Forces:
                 raise ValueError("Force term {} of {} not available".format(v,self.energies))
 
             pot += E.cpu().sum().item()
-            self.forces[pairs[:, 0]] -= (direction_unitvec * force_coeff[:, None])
-            self.forces[pairs[:, 1]] += (direction_unitvec * force_coeff[:, None])
+            self.forces.index_add_(0, pairs[:, 0], -direction_unitvec * force_coeff[:, None])
+            self.forces.index_add_(0, pairs[:, 1], direction_unitvec * force_coeff[:, None])
 
         if self.external:
             ext_ene, ext_force = self.external.calculate(pos, box)
