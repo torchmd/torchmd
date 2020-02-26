@@ -24,33 +24,38 @@ class Forces:
         self.forces.zero_()
         if self.require_distances:
             # Lazy mode: Do all vs all distances
-            dist, direction_unitvec = calculateDistances(pos, self.ava_idx[:, 0], self.ava_idx[:, 1], box)
+            nb_dist, nb_unitvec = calculateDistances(pos, self.ava_idx[:, 0], self.ava_idx[:, 1], box)
 
         for v in self.energies:
             if v=="Bonds":
-                dist, direction_unitvec = calculateDistances(pos, self.par.bonds[:, 0], self.par.bonds[:, 1], box)
-                E, force_coeff = evaluateBonds(dist, self.par.bond_params)
+                bond_dist, bond_unitvec = calculateDistances(pos, self.par.bonds[:, 0], self.par.bonds[:, 1], box)
+                E, force_coeff = evaluateBonds(bond_dist, self.par.bond_params)
                 pairs = self.par.bonds
+                unitvec = bond_unitvec
             elif v=="Electrostatics":
-                E, force_coeff = evaluateElectrostatics(dist, self.ava_idx, self.par.charges)
+                E, force_coeff = evaluateElectrostatics(nb_dist, self.ava_idx, self.par.charges)
                 pairs = self.ava_idx
+                unitvec = nb_unitvec
             elif v=="LJ":
-                E, force_coeff = evaluateLJ(dist, self.ava_idx, self.par.mapped_atom_types, self.par.A, self.par.B)
+                E, force_coeff = evaluateLJ(nb_dist, self.ava_idx, self.par.mapped_atom_types, self.par.A, self.par.B)
                 pairs = self.ava_idx
+                unitvec = nb_unitvec
             elif v=="Repulsion":
-                E, force_coeff = evaluateRepulsion(dist, self.ava_idx, self.par.mapped_atom_types, self.par.A)
-                pairs = self.ava_idx  
-            elif v=="RepulsionCG":
-                E, force_coeff = evaluateRepulsionCG(dist, self.ava_idx, self.par.mapped_atom_types, self.par.B)
+                E, force_coeff = evaluateRepulsion(nb_dist, self.ava_idx, self.par.mapped_atom_types, self.par.A)
                 pairs = self.ava_idx
+                unitvec = nb_unitvec  
+            elif v=="RepulsionCG":
+                E, force_coeff = evaluateRepulsionCG(nb_dist, self.ava_idx, self.par.mapped_atom_types, self.par.B)
+                pairs = self.ava_idx
+                unitvec = nb_unitvec
             elif v=='': #to allow no terms
                 continue
             else:
                 raise ValueError("Force term {} of {} not available".format(v,self.energies))
 
             pot += E.cpu().sum().item()
-            self.forces.index_add_(0, pairs[:, 0], -direction_unitvec * force_coeff[:, None])
-            self.forces.index_add_(0, pairs[:, 1], direction_unitvec * force_coeff[:, None])
+            self.forces.index_add_(0, pairs[:, 0], -unitvec * force_coeff[:, None])
+            self.forces.index_add_(0, pairs[:, 1], unitvec * force_coeff[:, None])
 
         if self.external:
             ext_ene, ext_force = self.external.calculate(pos, box)
