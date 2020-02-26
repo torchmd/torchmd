@@ -48,11 +48,13 @@ args = get_args()
 torch.manual_seed(args.seed)
 torch.cuda.manual_seed_all(args.seed)
 device = torch.device(args.device)
+
 mol = Molecule(args.structure)
-mol.atomtype[:] = "AR"  #TODO: To fix this!!!
+#mol.atomtype[:] = "AR"  #TODO: To fix this!!!
+atom_types = mol.name
+print(atom_types)
 atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze())
 box = torch.tensor([mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']])
-atom_types = mol.atomtype
 natoms = len(atom_types)
 bonds = mol.bonds.astype(int).copy()
 
