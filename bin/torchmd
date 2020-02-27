@@ -1,0 +1,6 @@
+#!/bin/bash
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+TORCHMDHOME=$DIR/..
+export PYTHONPATH=$TORCHMDHOME
+ARGS="${@:1}"
+python $TORCHMDHOME/scripts/run.py $ARGS
