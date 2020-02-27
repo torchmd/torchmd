@@ -24,14 +24,21 @@ class Forces:
         self.forces.zero_()
         if self.require_distances:
             # Lazy mode: Do all vs all distances
-            nb_dist, nb_unitvec = calculateDistances(pos, self.ava_idx[:, 0], self.ava_idx[:, 1], box)
+            nb_dist, nb_unitvec, _ = calculateDistances(pos, self.ava_idx[:, 0], self.ava_idx[:, 1], box)
 
         for v in self.energies:
             if v=="Bonds":
-                bond_dist, bond_unitvec = calculateDistances(pos, self.par.bonds[:, 0], self.par.bonds[:, 1], box)
+                bond_dist, bond_unitvec, _ = calculateDistances(pos, self.par.bonds[:, 0], self.par.bonds[:, 1], box)
                 E, force_coeff = evaluateBonds(bond_dist, self.par.bond_params)
                 pairs = self.par.bonds
                 unitvec = bond_unitvec
+            elif v=="Angles":
+                E, angle_forces = evaluateAngles(pos, self.par.angles, self.par.angle_params, box)
+                pot += E.cpu().sum().item()
+                self.forces.index_add_(0, self.par.angles[:, 0], angle_forces[0])
+                self.forces.index_add_(0, self.par.angles[:, 1], angle_forces[1])
+                self.forces.index_add_(0, self.par.angles[:, 2], angle_forces[2])
+                continue
             elif v=="Electrostatics":
                 E, force_coeff = evaluateElectrostatics(nb_dist, self.ava_idx, self.par.charges)
                 pairs = self.ava_idx
@@ -84,7 +91,7 @@ def calculateDistances(atom_pos, atom_idx1, atom_idx2, box):
     direction_vec = wrap_dist(atom_pos[atom_idx1, :] - atom_pos[atom_idx2, :], box)
     dist = torch.sqrt(torch.sum(direction_vec * direction_vec, dim=1))
     direction_unitvec = direction_vec / dist[:, None]
-    return dist, direction_unitvec
+    return dist, direction_unitvec, direction_vec
 
 
 ELEC_FACTOR = 1 / (4 * const.pi * const.epsilon_0)  # Coulomb's constant
@@ -150,3 +157,31 @@ def evaluateBonds(dist, bond_params):
     pot = k0 * (x ** 2)
     force = 2 * k0 * x
     return pot, force
+
+
+def evaluateAngles(pos, angles, angle_params, box):
+    k0 = angle_params[:, 0]
+    theta0 = angle_params[:, 1]
+
+    _, _, r23 = calculateDistances(pos, angles[:, 2], angles[:, 1], box)
+    _, _, r21 = calculateDistances(pos, angles[:, 0], angles[:, 1], box)
+    dotprod = torch.sum(r23 * r12, dim=1)
+    norm23inv = 1 / torch.norm(r23, dim=1)
+    norm21inv = 1 / torch.norm(r21, dim=1)
+
+    cos_theta = dotprod * norm21inv * norm23inv
+    cos_theta = torch.clamp(cos_theta, -1, 1)
+    theta = torch.acos(cos_theta)
+
+    delta_theta = theta - theta0
+    pot = k0 * delta_theta * delta_theta
+
+    sin_theta = torch.sqrt(1.0 - cos_theta * cos_theta)
+
+    coef = torch.zeros_like(sin_theta)
+    coef[sin_theta != 0] = -2.0 * k0 * delta_theta / sin_theta
+
+    force0 = coef * (cos_theta * r21 * norm21inv - r23 * norm23inv) * norm21inv
+    force2 = coef * (cos_theta * r23 * norm23inv - r21 * norm21inv) * norm23inv
+    force1 = - (force0 + force2)
+    return pot, (force0, force1, force2)

@@ -3,14 +3,14 @@ import torch
 import yaml
 
 class Parameters:
-    A=None
-    B=None
-    bonds=None
-    bond_params=None
-    
-    charges = None
-    masses =None
-    mapped_atom_types=None
+    def __init__(self):
+        self.A=None
+        self.B=None
+        self.bonds=None
+        self.bond_params=None
+        self.charges = None
+        self.masses =None
+        self.mapped_atom_types=None
 
     def to_(self,device):
         self.A = self.A.to(device)
@@ -18,6 +18,8 @@ class Parameters:
         self.charges = self.charges.to(device)
         self.bonds = self.bonds.to(device)
         self.bond_params = self.bond_params.to(device)
+        self.angles = self.angles.to(device)
+        self.angle_params = self.angle_params.to(device)
         self.masses = self.masses.to(device)
 
 class Forcefield:
@@ -27,7 +29,7 @@ class Forcefield:
     def __init__(self,filename):
         self.ff = yaml.load(open(filename), Loader=yaml.FullLoader)
 
-    def create(self,atom_types,bonds=None):
+    def create(self,atom_types,bonds=None, angles=None):
         atomtype_map = {}
         for i, at in enumerate(self.ff["atomtypes"]):
             atomtype_map[at] = i
@@ -38,6 +40,8 @@ class Forcefield:
         par.masses = self.make_masses(atom_types)
         if bonds is not None:
             par.bond_params,par.bonds = self.make_bonds(bonds,atom_types)
+        if angles is not None:
+            par.angle_params, par.angles = self.make_angles(angles,atom_types)
         return par
 
     def make_lj(self,atomtype_map):
@@ -72,6 +76,26 @@ class Forcefield:
         bond_params = torch.tensor(bond_params)
         bonds = torch.tensor(uqbonds)
         return bond_params,bonds
+
+    def make_angles(self, angles, atom_types):
+        angle_params = []
+        uqangles = np.setdiff1d(angles, angles[:, ::-1]) # Remove duplicate flipped angles
+
+        for triplet in uqangles:
+            triplet_atomtype = f"({atom_types[triplet[0]]}, {atom_types[triplet[1]]}, {atom_types[triplet[2]]})"
+            inv_triplet_atomtype = f"({atom_types[triplet[2]]}, {atom_types[triplet[1]]}, {atom_types[triplet[0]]})"
+            if triplet_atomtype in self.ff["angles"]:
+                ap = self.ff["angles"][triplet_atomtype]
+            elif inv_triplet_atomtype in self.ff["angles"]:
+                ap = self.ff["angles"][inv_triplet_atomtype]
+            else:
+                raise RuntimeError(
+                    f"{pair_atomtype} doesn't have bond information in the FF"
+                )
+            angle_params.append([ap["k0"], np.deg2rad(ap["theta0"])])
+        angle_params = torch.tensor(angle_params)
+        angles = torch.tensor(uqangles)
+        return angle_params, angles
 
     def make_masses(self,atom_types):
         masses = torch.tensor([self.ff["masses"][at] for at in atom_types])
