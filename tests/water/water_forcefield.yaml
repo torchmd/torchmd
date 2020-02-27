@@ -8,6 +8,11 @@ bonds:
     k0: 0.000
     req: 1.514
 
+angles:
+  (HT, OT, HT):
+    k0: 55.000
+    theta0: 104.520
+
 lj:
   OT:
     sigma: 3.150574226831496
