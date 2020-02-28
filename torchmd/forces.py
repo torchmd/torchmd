@@ -19,8 +19,9 @@ class Forces:
         self.require_distances = any(f in self.nonbonded for f in self.energies)
         self.external = external
 
-    def compute(self, pos, box):
-        pot = 0
+    def compute(self, pos, box, returnDetails=False):
+        pot = {v: 0 for v in self.energies}
+        pot["external"] = 0
         self.forces.zero_()
         if self.require_distances:
             # Lazy mode: Do all vs all distances
@@ -30,29 +31,34 @@ class Forces:
             if v=="Bonds":
                 bond_dist, bond_unitvec, _ = calculateDistances(pos, self.par.bonds[:, 0], self.par.bonds[:, 1], box)
                 E, force_coeff = evaluateBonds(bond_dist, self.par.bond_params)
+                pot[v] += E.cpu().sum().item()
                 pairs = self.par.bonds
                 unitvec = bond_unitvec
             elif v=="Angles":
                 E, angle_forces = evaluateAngles(pos, self.par.angles, self.par.angle_params, box)
-                pot += E.cpu().sum().item()
+                pot[v] += E.cpu().sum().item()
                 self.forces.index_add_(0, self.par.angles[:, 0], angle_forces[0])
                 self.forces.index_add_(0, self.par.angles[:, 1], angle_forces[1])
                 self.forces.index_add_(0, self.par.angles[:, 2], angle_forces[2])
                 continue
             elif v=="Electrostatics":
                 E, force_coeff = evaluateElectrostatics(nb_dist, self.ava_idx, self.par.charges)
+                pot[v] += E.cpu().sum().item()
                 pairs = self.ava_idx
                 unitvec = nb_unitvec
             elif v=="LJ":
                 E, force_coeff = evaluateLJ(nb_dist, self.ava_idx, self.par.mapped_atom_types, self.par.A, self.par.B)
+                pot[v] += E.cpu().sum().item()
                 pairs = self.ava_idx
                 unitvec = nb_unitvec
             elif v=="Repulsion":
                 E, force_coeff = evaluateRepulsion(nb_dist, self.ava_idx, self.par.mapped_atom_types, self.par.A)
+                pot[v] += E.cpu().sum().item()
                 pairs = self.ava_idx
                 unitvec = nb_unitvec  
             elif v=="RepulsionCG":
                 E, force_coeff = evaluateRepulsionCG(nb_dist, self.ava_idx, self.par.mapped_atom_types, self.par.B)
+                pot[v] += E.cpu().sum().item()
                 pairs = self.ava_idx
                 unitvec = nb_unitvec
             elif v=='': #to allow no terms
@@ -60,16 +66,19 @@ class Forces:
             else:
                 raise ValueError("Force term {} of {} not available".format(v,self.energies))
 
-            pot += E.cpu().sum().item()
+            #pot += E.cpu().sum().item()
             self.forces.index_add_(0, pairs[:, 0], -unitvec * force_coeff[:, None])
             self.forces.index_add_(0, pairs[:, 1], unitvec * force_coeff[:, None])
 
         if self.external:
             ext_ene, ext_force = self.external.calculate(pos, box)
-            pot += ext_ene.item()
+            pot["external"] += ext_ene.item()
             self.forces += ext_force
 
-        return pot
+        if returnDetails:
+            return pot
+        else:
+            return np.sum([v for _, v in pot.items()])
 
     def _make_indeces(self,natoms, exclude):
         excludepairs = []
@@ -196,4 +205,5 @@ def evaluateAngles(pos, angles, angle_params, box):
     force0 = coef[:, None] * (cos_theta[:, None] * r21 * norm21inv[:, None] - r23 * norm23inv[:, None]) * norm21inv[:, None]
     force2 = coef[:, None] * (cos_theta[:, None] * r23 * norm23inv[:, None] - r21 * norm21inv[:, None]) * norm23inv[:, None]
     force1 = - (force0 + force2)
+
     return pot, (force0, force1, force2)
