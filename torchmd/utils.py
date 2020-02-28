@@ -47,6 +47,11 @@ class LogWriter(object):
 class LoadFromFile(argparse.Action):
 #parser.add_argument('--file', type=open, action=LoadFromFile)
     def __call__ (self, parser, namespace, values, option_string = None):
+        if values.name.endswith("yaml") or values.name.endswith("yml"):
+            with values as f:
+                namespace.__dict__.update(yaml.load(f, Loader=yaml.FullLoader))
+                return
+
         with values as f:
             input=f.read()
             input=input.rstrip()

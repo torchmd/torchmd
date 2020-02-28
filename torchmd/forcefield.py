@@ -16,10 +16,12 @@ class Parameters:
         self.A = self.A.to(device)
         self.B = self.B.to(device)
         self.charges = self.charges.to(device)
-        self.bonds = self.bonds.to(device)
-        self.bond_params = self.bond_params.to(device)
-        self.angles = self.angles.to(device)
-        self.angle_params = self.angle_params.to(device)
+        if self.bonds is not None:
+            self.bonds = self.bonds.to(device)
+            self.bond_params = self.bond_params.to(device)
+        if self.angles is not None:
+            self.angles = self.angles.to(device)
+            self.angle_params = self.angle_params.to(device)
         self.masses = self.masses.to(device)
 
 class Forcefield:
@@ -79,7 +81,12 @@ class Forcefield:
 
     def make_angles(self, angles, atom_types):
         angle_params = []
-        uqangles = np.setdiff1d(angles, angles[:, ::-1]) # Remove duplicate flipped angles
+        uqangles = []
+        for aa in angles:
+            aa = aa.tolist()
+            if aa in uqangles or aa[::-1] in uqangles:
+                continue
+            uqangles.append(aa)
 
         for triplet in uqangles:
             triplet_atomtype = f"({atom_types[triplet[0]]}, {atom_types[triplet[1]]}, {atom_types[triplet[2]]})"

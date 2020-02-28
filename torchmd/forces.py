@@ -8,13 +8,13 @@ from torchmd.forcefield import Parameters
 class Forces:
     nonbonded = ["Electrostatics","LJ","Repulsion","RepulsionCG"]
 
-    def __init__(self, parameters, energies, device, external=None):
+    def __init__(self, parameters, energies, device, external=None, exclude=("Bonds", "Angles")):
         self.par = parameters
         self.par.to_(device) #TODO: I should really copy to gpu not update
         self.device = device
         self.energies = energies
         self.natoms = len(parameters.masses)
-        self.ava_idx = self._make_indeces(self.natoms)
+        self.ava_idx = self._make_indeces(self.natoms, exclude)
         self.forces = torch.zeros(self.natoms, 3).to(self.device)
         self.require_distances = any(f in self.nonbonded for f in self.energies)
         self.external = external
@@ -71,11 +71,23 @@ class Forces:
 
         return pot
 
-    def _make_indeces(self,natoms):
+    def _make_indeces(self,natoms, exclude):
+        excludepairs = []
+        if "Bonds" in exclude and self.par.bonds is not None:
+            excludepairs += self.par.bonds.cpu().numpy().tolist()
+        if "Angles" in exclude:
+            npangles = self.par.angles.cpu().numpy()
+            excludepairs += npangles[:, [0, 1]].tolist()
+            excludepairs += npangles[:, [1, 2]].tolist()
+            excludepairs += npangles[:, [0, 2]].tolist()
+
         allvsall_indeces = []
         for i in range(natoms):
             for j in range(i + 1, natoms):
+                if [i, j] in excludepairs or [j, i] in excludepairs:
+                    continue
                 allvsall_indeces.append([i, j])
+
         ava_idx = torch.tensor(allvsall_indeces).to(self.device)
         return ava_idx
 
@@ -165,7 +177,7 @@ def evaluateAngles(pos, angles, angle_params, box):
 
     _, _, r23 = calculateDistances(pos, angles[:, 2], angles[:, 1], box)
     _, _, r21 = calculateDistances(pos, angles[:, 0], angles[:, 1], box)
-    dotprod = torch.sum(r23 * r12, dim=1)
+    dotprod = torch.sum(r23 * r21, dim=1)
     norm23inv = 1 / torch.norm(r23, dim=1)
     norm21inv = 1 / torch.norm(r21, dim=1)
 
@@ -174,14 +186,14 @@ def evaluateAngles(pos, angles, angle_params, box):
     theta = torch.acos(cos_theta)
 
     delta_theta = theta - theta0
-    pot = k0 * delta_theta * delta_theta
+    pot = torch.sum(k0 * delta_theta * delta_theta)
 
     sin_theta = torch.sqrt(1.0 - cos_theta * cos_theta)
 
     coef = torch.zeros_like(sin_theta)
     coef[sin_theta != 0] = -2.0 * k0 * delta_theta / sin_theta
 
-    force0 = coef * (cos_theta * r21 * norm21inv - r23 * norm23inv) * norm21inv
-    force2 = coef * (cos_theta * r23 * norm23inv - r21 * norm21inv) * norm23inv
+    force0 = coef[:, None] * (cos_theta[:, None] * r21 * norm21inv[:, None] - r23 * norm23inv[:, None]) * norm21inv[:, None]
+    force2 = coef[:, None] * (cos_theta[:, None] * r23 * norm23inv[:, None] - r21 * norm21inv[:, None]) * norm23inv[:, None]
     force1 = - (force0 + force2)
     return pot, (force0, force1, force2)

@@ -2,13 +2,22 @@
 import pandas as pd
 import numpy as np
 from moleculekit.molecule import Molecule
+import sys
+import os
+import matplotlib.pylab as plt
+import yaml
 
-structure='./tests/argon/argon2.pdb'
-df = pd.read_csv('mytest/monitor.csv')
-df.plot(x='ns',y=['etot'])
+plt.ion()
 
-mol=Molecule(structure)
-coords = np.load('mytest/output.npy')
+conf = yaml.load(open(sys.argv[1], 'r'), Loader=yaml.FullLoader)
+
+df = pd.read_csv(os.path.join(conf["log_dir"], 'monitor.csv'))
+df.plot(x='ns',y=['etot', 'ekin', 'epot'])
+
+mol=Molecule(conf["structure"])
+coords = np.load(os.path.join(conf["log_dir"], 'output.npy'))
 mol.coords=coords
 mol.reps.add('all','vdw')
 mol.view()
+
+input()

@@ -51,16 +51,17 @@ device = torch.device(args.device)
 
 mol = Molecule(args.structure)
 #mol.atomtype[:] = "AR"  #TODO: To fix this!!!
-atom_types = mol.name
+atom_types = mol.atomtype if mol.atomtype is not None else mol.name
 print(atom_types)
 atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze())
 box = torch.tensor([mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']])
 natoms = len(atom_types)
 bonds = mol.bonds.astype(int).copy()
+angles = mol.angles.astype(int).copy()
 
 print("Force terms: ",args.forceterms)
 forcefield = Forcefield(args.forcefield)
-parameters = forcefield.create(atom_types,bonds=bonds)
+parameters = forcefield.create(atom_types,bonds=bonds,angles=angles)
 
 atom_vel = maxwell_boltzmann(parameters.masses,args.temperature)
 system = System(atom_pos,atom_vel,box,device)
