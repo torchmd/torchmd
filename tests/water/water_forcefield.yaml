@@ -3,10 +3,10 @@ atomtypes: [OT, HT]
 bonds:
   (OT, HT):
     k0: 450.000
-    req: 0.957
+    req: 0.9572
   (HT, HT):
     k0: 0.000
-    req: 1.514
+    req: 1.5139
 
 angles:
   (HT, OT, HT):
@@ -23,9 +23,9 @@ lj:
 
 electrostatics:
   OT:
-    charge: 0
+    charge: -0.834
   HT:
-    charge: 0
+    charge: 0.417
 
 masses:
   OT: 15.9994
