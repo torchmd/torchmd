@@ -1,0 +1,14 @@
+timestep: 1
+temperature: 300
+langevin_temperature: 300
+langevin_gamma: 0.1
+device: cpu
+# First load psf then pdb otherwise crystalinfo gets deleted
+structure: [tests/water/structure.psf, tests/water/structure.pdb]
+forcefield: tests/water/water_forcefield.yaml
+seed: 1
+output_period: 1
+steps: 1000
+log_dir: mywaterrun
+output: output
+forceterms: [LJ, Bonds, Angles, Electrostatics]

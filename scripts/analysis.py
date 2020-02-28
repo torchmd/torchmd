@@ -12,7 +12,9 @@ plt.ion()
 conf = yaml.load(open(sys.argv[1], 'r'), Loader=yaml.FullLoader)
 
 df = pd.read_csv(os.path.join(conf["log_dir"], 'monitor.csv'))
-df.plot(x='ns',y=['etot', 'ekin', 'epot'])
+df.plot(x='ns',y='etot')
+df.plot(x='ns',y='ekin')
+df.plot(x='ns',y='epot')
 
 mol=Molecule(conf["structure"])
 coords = np.load(os.path.join(conf["log_dir"], 'output.npy'))
