@@ -53,8 +53,8 @@ mol = Molecule(args.structure)
 #mol.atomtype[:] = "AR"  #TODO: To fix this!!!
 atom_types = mol.atomtype if mol.atomtype is not None else mol.name
 print(atom_types)
-atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze())
-box = torch.tensor([mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']])
+atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze()).double()
+box = torch.tensor([mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']]).double()
 natoms = len(atom_types)
 bonds = mol.bonds.astype(int).copy()
 angles = mol.angles.astype(int).copy()

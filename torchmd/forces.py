@@ -15,7 +15,7 @@ class Forces:
         self.energies = energies
         self.natoms = len(parameters.masses)
         self.ava_idx = self._make_indeces(self.natoms, exclude)
-        self.forces = torch.zeros(self.natoms, 3).to(self.device)
+        self.forces = torch.zeros(self.natoms, 3).double().to(self.device)
         self.require_distances = any(f in self.nonbonded for f in self.energies)
         self.external = external
 
