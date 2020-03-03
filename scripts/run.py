@@ -31,6 +31,7 @@ def get_args():
     parser.add_argument('--output', default='output', help='Output filename for trajectory')
     parser.add_argument('--forceterms', nargs='+', default="LJ", help='Forceterms to include, e.g. --forceterms Bonds LJ')
     parser.add_argument('--cutoff', default=None, type=float, help='LJ/Elec/Bond cutoff')
+    parser.add_argument('--precision', default='single', type=str, help='LJ/Elec/Bond cutoff')
     
     args = parser.parse_args()
     os.makedirs(args.log_dir,exist_ok=True)
@@ -54,19 +55,23 @@ mol = Molecule(args.structure)
 #mol.atomtype[:] = "AR"  #TODO: To fix this!!!
 atom_types = mol.atomtype if mol.atomtype is not None else mol.name
 print(atom_types)
-atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze()).double()
-box = torch.tensor([mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']]).double()
+atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze())
+box = torch.tensor([mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']])
+if args.precision == 'double':
+    atom_pos = atom_pos.double() 
+    box = box.double()
+
 natoms = len(atom_types)
 bonds = mol.bonds.astype(int).copy()
 angles = mol.angles.astype(int).copy()
 
 print("Force terms: ",args.forceterms)
-forcefield = Forcefield(args.forcefield)
+forcefield = Forcefield(args.forcefield, precision=args.precision)
 parameters = forcefield.create(atom_types,bonds=bonds,angles=angles)
 
 atom_vel = maxwell_boltzmann(parameters.masses,args.temperature)
 system = System(atom_pos,atom_vel,box,device)
-forces = Forces(parameters,args.forceterms,device,external=None, cutoff=args.cutoff, rfa=True if args.cutoff else False)
+forces = Forces(parameters,args.forceterms,device,external=None, cutoff=args.cutoff, rfa=True if args.cutoff else False, precision=args.precision)
 integrator = Integrator(system,forces,args.timestep,device,gamma=args.langevin_gamma,T=args.langevin_temperature)
 wrapper = Wrapper(natoms,bonds,device)
 

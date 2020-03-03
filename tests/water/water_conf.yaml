@@ -13,3 +13,4 @@ log_dir: mywaterrun
 output: output
 cutoff: 7.3
 forceterms: [LJ, Bonds, Angles, Electrostatics]
+precision: double
