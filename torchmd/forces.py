@@ -6,9 +6,22 @@ import numpy as np
 from torchmd.forcefield import Parameters
 
 class Forces:
+    """
+        Parameters
+        ----------
+        cutoff : float
+            If set to a value it will only calculate LJ, electrostatics and bond energies for atoms which are closer
+            than the threshold
+        rfa : bool
+            Use with `cutoff` to enable the reaction field approximation for scaling of the electrostatics up to the cutoff.
+            Uses the value of `solventDielectric` to model everything beyond the cutoff distance as solvent with uniform
+            dielectric.
+        solventDielectric : float
+            Used together with `cutoff` and `rfa`
+    """
     nonbonded = ["Electrostatics","LJ","Repulsion","RepulsionCG"]
 
-    def __init__(self, parameters, energies, device, external=None, exclude=("Bonds", "Angles")):
+    def __init__(self, parameters, energies, device, external=None, exclude=("Bonds", "Angles"), cutoff=None, rfa=False, solventDielectric=78.5):
         self.par = parameters
         self.par.to_(device) #TODO: I should really copy to gpu not update
         self.device = device
@@ -18,6 +31,16 @@ class Forces:
         self.forces = torch.zeros(self.natoms, 3).double().to(self.device)
         self.require_distances = any(f in self.nonbonded for f in self.energies)
         self.external = external
+        self.cutoff = cutoff
+        self.rfa = rfa
+        self.solventDielectric = solventDielectric
+
+    def _filterByCutoff(self, dist, arrays):
+        under_cutoff = dist <= self.cutoff
+        indexedarrays = []
+        for arr in arrays:
+            indexedarrays.append(arr[under_cutoff])
+        return indexedarrays
 
     def compute(self, pos, box, returnDetails=False):
         pot = {v: 0 for v in self.energies}
@@ -26,13 +49,30 @@ class Forces:
         if self.require_distances:
             # Lazy mode: Do all vs all distances
             nb_dist, nb_unitvec, _ = calculateDistances(pos, self.ava_idx[:, 0], self.ava_idx[:, 1], box)
+            ava_idx = self.ava_idx
+            if self.cutoff is not None:
+                nb_dist, nb_unitvec, ava_idx = self._filterByCutoff(nb_dist, (nb_dist, nb_unitvec, ava_idx))
+                # under_cutoff = nb_dist <= self.cutoff
+                # nb_dist = nb_dist[under_cutoff]
+                # nb_unitvec = nb_unitvec[under_cutoff]
+                # ava_idx = self.ava_idx[under_cutoff]
 
         for v in self.energies:
             if v=="Bonds":
                 bond_dist, bond_unitvec, _ = calculateDistances(pos, self.par.bonds[:, 0], self.par.bonds[:, 1], box)
-                E, force_coeff = evaluateBonds(bond_dist, self.par.bond_params)
-                pot[v] += E.cpu().sum().item()
+                # TODO: Implement cutoff for bonds
                 pairs = self.par.bonds
+                bond_params = self.par.bond_params
+                if self.cutoff is not None:
+                    bond_dist, bond_unitvec, pairs, bond_params = self._filterByCutoff(bond_dist, (bond_dist, bond_unitvec, pairs, bond_params))
+                    # under_cutoff = bond_dist <= self.cutoff
+                    # bond_dist = bond_dist[under_cutoff]
+                    # bond_unitvec = bond_unitvec[under_cutoff]
+                    # pairs = self.par.bonds[under_cutoff]
+                    # bond_params = self.par.bond_params[under_cutoff]
+
+                E, force_coeff = evaluateBonds(bond_dist, bond_params)
+                pot[v] += E.cpu().sum().item()
                 unitvec = bond_unitvec
             elif v=="Angles":
                 E, angle_forces = evaluateAngles(pos, self.par.angles, self.par.angle_params, box)
@@ -42,24 +82,24 @@ class Forces:
                 self.forces.index_add_(0, self.par.angles[:, 2], angle_forces[2])
                 continue
             elif v=="Electrostatics":
-                E, force_coeff = evaluateElectrostatics(nb_dist, self.ava_idx, self.par.charges)
+                E, force_coeff = evaluateElectrostatics(nb_dist, ava_idx, self.par.charges, cutoff=self.cutoff, rfa=self.rfa, solventDielectric=self.solventDielectric)
                 pot[v] += E.cpu().sum().item()
-                pairs = self.ava_idx
+                pairs = ava_idx
                 unitvec = nb_unitvec
             elif v=="LJ":
-                E, force_coeff = evaluateLJ(nb_dist, self.ava_idx, self.par.mapped_atom_types, self.par.A, self.par.B)
+                E, force_coeff = evaluateLJ(nb_dist, ava_idx, self.par.mapped_atom_types, self.par.A, self.par.B)
                 pot[v] += E.cpu().sum().item()
-                pairs = self.ava_idx
+                pairs = ava_idx
                 unitvec = nb_unitvec
             elif v=="Repulsion":
-                E, force_coeff = evaluateRepulsion(nb_dist, self.ava_idx, self.par.mapped_atom_types, self.par.A)
+                E, force_coeff = evaluateRepulsion(nb_dist, ava_idx, self.par.mapped_atom_types, self.par.A)
                 pot[v] += E.cpu().sum().item()
-                pairs = self.ava_idx
+                pairs = ava_idx
                 unitvec = nb_unitvec  
             elif v=="RepulsionCG":
-                E, force_coeff = evaluateRepulsionCG(nb_dist, self.ava_idx, self.par.mapped_atom_types, self.par.B)
+                E, force_coeff = evaluateRepulsionCG(nb_dist, ava_idx, self.par.mapped_atom_types, self.par.B)
                 pot[v] += E.cpu().sum().item()
-                pairs = self.ava_idx
+                pairs = ava_idx
                 unitvec = nb_unitvec
             elif v=='': #to allow no terms
                 continue
@@ -159,15 +199,27 @@ def evaluateRepulsionCG(dist, pair_indeces, atom_types, B, scale=1):  # Repulsio
     return pot, force
 
 
-def evaluateElectrostatics(dist, pair_indeces, atom_charges, scale=1):
-    pot = (
-        ELEC_FACTOR
-        * atom_charges[pair_indeces[:, 0]]
-        * atom_charges[pair_indeces[:, 1]]
-        / dist
-        / scale
-    )
-    force = -pot / dist
+def evaluateElectrostatics(dist, pair_indeces, atom_charges, scale=1, cutoff=None, rfa=False, solventDielectric=78.5):
+    if rfa:  # Reaction field approximation for electrostatics with cutoff
+        # http://docs.openmm.org/latest/userguide/theory.html#coulomb-interaction-with-cutoff
+        # Ilario G. Tironi, René Sperb, Paul E. Smith, and Wilfred F. van Gunsteren. A generalized reaction field method
+        # for molecular dynamics simulations. Journal of Chemical Physics, 102(13):5451–5459, 1995.
+        denom = ((2 * solventDielectric) + 1)
+        krf = (1 / cutoff ** 3) * (solventDielectric - 1) / denom
+        crf = (1 / cutoff) * (3 * solventDielectric) / denom
+        common = ELEC_FACTOR * atom_charges[pair_indeces[:, 0]] * atom_charges[pair_indeces[:, 1]] / scale
+        dist2 = dist ** 2
+        pot = common * ((1 / dist) + krf * dist2 - crf)
+        force = common * (2 * krf * dist - 1 / dist2)
+    else:
+        pot = (
+            ELEC_FACTOR
+            * atom_charges[pair_indeces[:, 0]]
+            * atom_charges[pair_indeces[:, 1]]
+            / dist
+            / scale
+        )
+        force = -pot / dist
     return pot, force
 
 
@@ -200,7 +252,8 @@ def evaluateAngles(pos, angles, angle_params, box):
     sin_theta = torch.sqrt(1.0 - cos_theta * cos_theta)
 
     coef = torch.zeros_like(sin_theta)
-    coef[sin_theta != 0] = -2.0 * k0 * delta_theta / sin_theta
+    nonzero = sin_theta != 0
+    coef[nonzero] = -2.0 * k0[nonzero] * delta_theta[nonzero] / sin_theta[nonzero]
 
     force0 = coef[:, None] * (cos_theta[:, None] * r21 * norm21inv[:, None] - r23 * norm23inv[:, None]) * norm21inv[:, None]
     force2 = coef[:, None] * (cos_theta[:, None] * r23 * norm23inv[:, None] - r21 * norm21inv[:, None]) * norm23inv[:, None]

@@ -11,4 +11,5 @@ output_period: 1
 steps: 1000
 log_dir: mywaterrun
 output: output
+cutoff: 7.3
 forceterms: [LJ, Bonds, Angles, Electrostatics]

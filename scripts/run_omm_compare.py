@@ -33,7 +33,6 @@ frame = 0
 mol.dropFrames(keep=frame)
 
 atom_types = mol.atomtype if mol.atomtype is not None else mol.name
-print(atom_types)
 atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze()).double()
 box = torch.tensor([mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']]).double()
 mol.box[:] = np.array([[mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']]]).T
@@ -45,50 +44,56 @@ mol.charge[mol.atomtype == "HT"] = 0.417000
 mol.charge[mol.atomtype == "OT"] = -0.834000
 
 forceterms = ["LJ", "Bonds", "Angles", "Electrostatics"]
-# forceterms = ["Electrostatics", "LJ"]
-# forceterms = ["Electrostatics",]
-# ommforceterms = ["electrostatic",] 
-# forceterms = ["LJ",]
-# ommforceterms = ["lennardjones",] 
+ommforceterms = ["lennardjones", "bond", "angle", "electrostatic"]
 
-print("Force terms: ",forceterms)
-forcefield = Forcefield(args.forcefield)
-parameters = forcefield.create(atom_types,bonds=bonds,angles=angles)
+mol_org = mol.copy()
 
-atom_vel = maxwell_boltzmann(parameters.masses,args.temperature)
-system = System(atom_pos,atom_vel,box,device)
-forces = Forces(parameters, forceterms, device, external=None)
-#integrator = Integrator(system,forces,args.timestep,device,gamma=args.langevin_gamma,T=args.langevin_temperature)
-#wrapper = Wrapper(natoms,bonds,device)
+datastore = {}
+for forceterm, ommforceterm in zip(forceterms, ommforceterms):
+    forceterm = [forceterm,]
+    ommforceterm = [ommforceterm,]
+    mol = mol_org.copy()
+    print("Force terms: ",forceterm)
+    forcefield = Forcefield(args.forcefield)
+    parameters = forcefield.create(atom_types,bonds=bonds,angles=angles)
 
-#traj = []
-#wrapper.wrap(system.pos,system.box)
-#traj.append(system.pos.cpu().numpy().copy())
-#logs = LogWriter(args.log_dir,keys=('iter','ns','epot','ekin','etot','T'))
-#iterator = tqdm(range(1,int(args.steps/args.output_period)))
-Epot = forces.compute(system.pos,system.box, returnDetails=True)
+    atom_vel = maxwell_boltzmann(parameters.masses,args.temperature)
+    system = System(atom_pos,atom_vel,box,device)
+    forces = Forces(parameters, forceterm, device, external=None, cutoff=7.3, rfa=True)
+    Epot = forces.compute(system.pos,system.box, returnDetails=True)
+    myforces = forces.forces.cpu().numpy()
 
+    prm = parmed.charmm.CharmmParameterSet("./tests/water/parameters.prm")
+    struct = parmed.charmm.CharmmPsfFile("./tests/water/structure.psf")
+    keepForces(prm, struct, mol, forces=ommforceterm)
+    omm_energies, omm_forces = openmm_energy(
+        prm, struct, mol.coords, box=mol.box, cutoff=7.3
+    )
+        
+    ffev = FFEvaluate(mol, prm, cutoff=7.3, rfa=True)
+    energy, forces_ffev, _ = ffev.calculate(mol.coords, mol.box)
+    energy = ffev.calculateEnergies(mol.coords, mol.box)
+    forces_ffev = forces_ffev.squeeze()
 
-prm = parmed.charmm.CharmmParameterSet("./tests/water/parameters.prm")
-struct = parmed.charmm.CharmmPsfFile("./tests/water/structure.psf")
-keepForces(prm, struct, mol)#, forces=ommforceterms)
-omm_energies, omm_forces = openmm_energy(
-    prm, struct, mol.coords, box=mol.box, cutoff=7.3
-)
+    def compareForces(forces1, forces2):
+        return np.max(np.abs(forces1 - forces2).flatten())
 
+    datastore[forceterm[0]] = {"omm": {"energy": omm_energies["total"], "forces": omm_forces},
+                               "torchmd": {"energy": np.sum([x for _, x in Epot.items()]), "forces": myforces},
+                               "ffeval": {"energy": energy["total"], "forces": forces_ffev}}
+
+for forceterm in datastore:
+    print(forceterm)
+    ommdata = datastore[forceterm]["omm"]
+    torchmddata = datastore[forceterm]["torchmd"]
+    ffevaldata = datastore[forceterm]["ffeval"]
+    print(f"     Energy diff:", ommdata["energy"] - torchmddata["energy"])
+    print(f"     Force diff:", compareForces(ommdata["forces"], torchmddata["forces"]))
+    print(f"     FFEVAL: Energy diff:", ommdata["energy"] - ffevaldata["energy"])
+    print(f"     FFEVAL: Force diff:", compareForces(ommdata["forces"], ffevaldata["forces"]))
     
-ffev = FFEvaluate(mol, prm)
-energy, forces_ffev, _ = ffev.calculate(mol.coords, mol.box)
-energy = ffev.calculateEnergies(mol.coords, mol.box)
-forces_ffev = forces_ffev.squeeze()
-
-myforces = forces.forces.cpu().numpy()
-
-def compareForces(forces1, forces2):
-    return np.max(np.abs(forces1 - forces2).flatten())
-
-print(energy)
-print(Epot)
+# print(energy)
+# print(Epot)
 
 
 from torchmd.mycalc import MyCalc

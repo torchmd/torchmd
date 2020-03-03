@@ -30,6 +30,7 @@ def get_args():
     parser.add_argument('--log-dir', default='./', help='Log directory')
     parser.add_argument('--output', default='output', help='Output filename for trajectory')
     parser.add_argument('--forceterms', nargs='+', default="LJ", help='Forceterms to include, e.g. --forceterms Bonds LJ')
+    parser.add_argument('--cutoff', default=None, type=float, help='LJ/Elec/Bond cutoff')
     
     args = parser.parse_args()
     os.makedirs(args.log_dir,exist_ok=True)
@@ -65,7 +66,7 @@ parameters = forcefield.create(atom_types,bonds=bonds,angles=angles)
 
 atom_vel = maxwell_boltzmann(parameters.masses,args.temperature)
 system = System(atom_pos,atom_vel,box,device)
-forces = Forces(parameters,args.forceterms,device,external=None)
+forces = Forces(parameters,args.forceterms,device,external=None, cutoff=args.cutoff, rfa=True if args.cutoff else False)
 integrator = Integrator(system,forces,args.timestep,device,gamma=args.langevin_gamma,T=args.langevin_temperature)
 wrapper = Wrapper(natoms,bonds,device)
 
