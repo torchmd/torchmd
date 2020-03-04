@@ -11,6 +11,8 @@ class Parameters:
         self.charges = None
         self.masses =None
         self.mapped_atom_types=None
+        self.angles = None
+        self.angle_params = None
 
     def to_(self,device):
         self.A = self.A.to(device)
