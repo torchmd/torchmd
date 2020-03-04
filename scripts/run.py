@@ -71,7 +71,8 @@ parameters = forcefield.create(atom_types,bonds=bonds,angles=angles)
 
 atom_vel = maxwell_boltzmann(parameters.masses,args.temperature)
 system = System(atom_pos,atom_vel,box,device)
-forces = Forces(parameters,args.forceterms,device,external=None, cutoff=args.cutoff, rfa=True if args.cutoff else False, precision=args.precision)
+forces = Forces(parameters,args.forceterms,device,external=None, cutoff=args.cutoff, 
+                            rfa=True if args.cutoff else False, precision=args.precision)
 integrator = Integrator(system,forces,args.timestep,device,gamma=args.langevin_gamma,T=args.langevin_temperature)
 wrapper = Wrapper(natoms,bonds,device)
 
