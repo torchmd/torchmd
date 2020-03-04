@@ -127,7 +127,7 @@ class Forces:
         excludepairs = []
         if "Bonds" in exclude and self.par.bonds is not None:
             excludepairs += self.par.bonds.cpu().numpy().tolist()
-        if "Angles" in exclude:
+        if "Angles" in exclude and self.par.angles is not None:
             npangles = self.par.angles.cpu().numpy()
             excludepairs += npangles[:, [0, 1]].tolist()
             excludepairs += npangles[:, [1, 2]].tolist()
