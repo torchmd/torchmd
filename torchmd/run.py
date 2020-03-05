@@ -52,8 +52,7 @@ def torchmd(args):
     device = torch.device(args.device)
 
     mol = Molecule(args.structure)
-    #mol.atomtype[:] = "AR"  #TODO: To fix this!!!
-    atom_types = mol.atomtype if mol.atomtype is not None else mol.name
+    atom_types = mol.atomtype if mol.atomtype[0] else mol.name  #TODO: Fix this crap
     print(atom_types)
     atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze())
     box = torch.tensor([mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']])
