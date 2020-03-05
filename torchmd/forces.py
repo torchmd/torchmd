@@ -27,12 +27,12 @@ class Forces:
         self.device = device
         self.energies = energies
         self.natoms = len(parameters.masses)
-        self.ava_idx = self._make_indeces(self.natoms, exclude)
+        self.require_distances = any(f in self.nonbonded for f in self.energies)
+        self.ava_idx = self._make_indeces(self.natoms, exclude) if self.require_distances else None
         self.forces = torch.zeros(self.natoms, 3).to(self.device)
         if precision == 'double':
             self.forces = self.forces.double()
 
-        self.require_distances = any(f in self.nonbonded for f in self.energies)
         self.external = external
         self.cutoff = cutoff
         self.rfa = rfa
