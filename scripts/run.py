@@ -32,6 +32,8 @@ def get_args():
     parser.add_argument('--forceterms', nargs='+', default="LJ", help='Forceterms to include, e.g. --forceterms Bonds LJ')
     parser.add_argument('--cutoff', default=None, type=float, help='LJ/Elec/Bond cutoff')
     parser.add_argument('--precision', default='single', type=str, help='LJ/Elec/Bond cutoff')
+    parser.add_argument('--external', default=None, type=str, help='TODO')
+    parser.add_argument('--rfa', default=False, action='store_true', help='Enable reaction field approximation')
     
     args = parser.parse_args()
     os.makedirs(args.log_dir,exist_ok=True)
@@ -44,51 +46,52 @@ def get_args():
 
     return args
 
-args = get_args()
+def torchmd(args):
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed_all(args.seed)
+    device = torch.device(args.device)
 
+    mol = Molecule(args.structure)
+    #mol.atomtype[:] = "AR"  #TODO: To fix this!!!
+    atom_types = mol.atomtype if mol.atomtype is not None else mol.name
+    print(atom_types)
+    atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze())
+    box = torch.tensor([mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']])
+    if args.precision == 'double':
+        atom_pos = atom_pos.double() 
+        box = box.double()
 
-torch.manual_seed(args.seed)
-torch.cuda.manual_seed_all(args.seed)
-device = torch.device(args.device)
+    natoms = len(atom_types)
+    bonds = mol.bonds.astype(int).copy()
+    angles = mol.angles.astype(int).copy()
 
-mol = Molecule(args.structure)
-#mol.atomtype[:] = "AR"  #TODO: To fix this!!!
-atom_types = mol.atomtype if mol.atomtype is not None else mol.name
-print(atom_types)
-atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze())
-box = torch.tensor([mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']])
-if args.precision == 'double':
-    atom_pos = atom_pos.double() 
-    box = box.double()
+    print("Force terms: ",args.forceterms)
+    forcefield = Forcefield(args.forcefield, precision=args.precision)
+    parameters = forcefield.create(atom_types,bonds=bonds,angles=angles)
 
-natoms = len(atom_types)
-bonds = mol.bonds.astype(int).copy()
-angles = mol.angles.astype(int).copy()
+    atom_vel = maxwell_boltzmann(parameters.masses,args.temperature)
+    system = System(atom_pos,atom_vel,box,device)
+    forces = Forces(parameters,args.forceterms,device,external=args.external, cutoff=args.cutoff, 
+                                rfa=args.rfa, precision=args.precision)
+    integrator = Integrator(system,forces,args.timestep,device,gamma=args.langevin_gamma,T=args.langevin_temperature)
+    wrapper = Wrapper(natoms,bonds,device)
 
-print("Force terms: ",args.forceterms)
-forcefield = Forcefield(args.forcefield, precision=args.precision)
-parameters = forcefield.create(atom_types,bonds=bonds,angles=angles)
-
-atom_vel = maxwell_boltzmann(parameters.masses,args.temperature)
-system = System(atom_pos,atom_vel,box,device)
-forces = Forces(parameters,args.forceterms,device,external=None, cutoff=args.cutoff, 
-                            rfa=True if args.cutoff else False, precision=args.precision)
-integrator = Integrator(system,forces,args.timestep,device,gamma=args.langevin_gamma,T=args.langevin_temperature)
-wrapper = Wrapper(natoms,bonds,device)
-
-traj = []
-wrapper.wrap(system.pos,system.box)
-traj.append(system.pos.cpu().numpy().copy())
-logs = LogWriter(args.log_dir,keys=('iter','ns','epot','ekin','etot','T'))
-iterator = tqdm(range(1,int(args.steps/args.output_period)))
-Epot = forces.compute(system.pos,system.box)
-for i in iterator:
-    Ekin,Epot,T = integrator.step(niter=args.output_period)
+    traj = []
     wrapper.wrap(system.pos,system.box)
     traj.append(system.pos.cpu().numpy().copy())
-    logs.write_row({'iter':i*args.output_period,'ns':FS2NS*i*args.output_period*args.timestep,'epot':Epot,
-                        'ekin':Ekin,'etot':Epot+Ekin,'T':T})
-    np.save(os.path.join(args.log_dir,args.output), np.stack(traj, axis=2)) #ideally we want to append
-    
+    logs = LogWriter(args.log_dir,keys=('iter','ns','epot','ekin','etot','T'))
+    iterator = tqdm(range(1,int(args.steps/args.output_period)))
+    Epot = forces.compute(system.pos,system.box)
+    for i in iterator:
+        Ekin,Epot,T = integrator.step(niter=args.output_period)
+        wrapper.wrap(system.pos,system.box)
+        traj.append(system.pos.cpu().numpy().copy())
+        logs.write_row({'iter':i*args.output_period,'ns':FS2NS*i*args.output_period*args.timestep,'epot':Epot,
+                            'ekin':Ekin,'etot':Epot+Ekin,'T':T})
+        np.save(os.path.join(args.log_dir,args.output), np.stack(traj, axis=2)) #ideally we want to append
+
+if __name__ == "__main__":
+    args = get_args()
+    torchmd(args)
 
 
