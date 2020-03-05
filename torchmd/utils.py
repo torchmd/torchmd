@@ -63,10 +63,18 @@ class LoadFromFile(argparse.Action):
 
 
 def save_argparse(args,filename,exclude=None):
-    with open(filename, 'w') as f:
-        for k,v in args.__dict__.items():
-            if k is exclude: continue
-            f.write(f'{k}={v}\n')
+    if filename.endswith('yaml') or filename.endswith('yml'):
+        if isinstance(exclude, str):
+            exclude = [exclude,]
+        args = args.__dict__.copy()
+        for exl in exclude:
+            del args[exl]
+        yaml.dump(args, open(filename, 'w'))
+    else:
+        with open(filename, 'w') as f:
+            for k,v in args.__dict__.items():
+                if k is exclude: continue
+                f.write(f'{k}={v}\n')
 
 
 

@@ -37,7 +37,7 @@ def get_args():
     
     args = parser.parse_args()
     os.makedirs(args.log_dir,exist_ok=True)
-    save_argparse(args,os.path.join(args.log_dir,'input.conf'),exclude='conf')
+    save_argparse(args,os.path.join(args.log_dir,'input.yaml'),exclude='conf')
 
     if isinstance(args.forceterms, str):
         args.forceterms = [args.forceterms]
