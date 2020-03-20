@@ -44,8 +44,8 @@ def get_args():
         args.forceterms = [args.forceterms]
     if args.steps%args.output_period!=0:
         raise ValueError('Steps must be multiple of output-period.')
-    if arg.save_period == 0:
-        arg.save_period = 10*args.output_period
+    if args.save_period == 0:
+        args.save_period = 10*args.output_period
     if args.save_period%args.output_period!=0:
         raise ValueError('save-period must be multiple of output-period.')
 
