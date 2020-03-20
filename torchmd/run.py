@@ -26,7 +26,7 @@ def get_args():
     parser.add_argument('--forcefield', default="tests/argon/argon_forcefield.yaml", help='Forcefield .yaml file')
     parser.add_argument('--seed',type=int,default=1,help='random seed (default: 1)')
     parser.add_argument('--output-period',type=int,default=10,help='Store trajectory and print monitor.csv every period')
-    parser.add_argument('--save-period',type=int,default=100,help='Dump trajectory to npy file')
+    parser.add_argument('--save-period',type=int,default=0,help='Dump trajectory to npy file. By default 10 times output-period.')
     parser.add_argument('--steps',type=int,default=10000,help='Total number of simulation steps')
     parser.add_argument('--log-dir', default='./', help='Log directory')
     parser.add_argument('--output', default='output', help='Output filename for trajectory')
@@ -44,6 +44,8 @@ def get_args():
         args.forceterms = [args.forceterms]
     if args.steps%args.output_period!=0:
         raise ValueError('Steps must be multiple of output-period.')
+    if arg.save_period == 0:
+        arg.save_period = 10*args.output_period
     if args.save_period%args.output_period!=0:
         raise ValueError('save-period must be multiple of output-period.')
 
