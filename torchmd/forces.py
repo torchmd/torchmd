@@ -192,13 +192,13 @@ def evaluateRepulsion(dist, pair_indeces, atom_types, A, scale=1):  # LJ without
 
 def evaluateRepulsionCG(dist, pair_indeces, atom_types, B, scale=1):  # Repulsion like from CGNet 
     atomtype_indices = atom_types[pair_indeces]
-    bb = B[atomtype_indices[:, 0], atomtype_indices[:, 1]]
+    aa = B[atomtype_indices[:, 0], atomtype_indices[:, 1]]
 
     rinv1 = 1 / dist
     rinv6 = rinv1 ** 6
 
-    pot = (bb * rinv6) / scale
-    force = (-6 * bb * rinv6) * rinv1 / scale
+    pot = (aa * rinv6) / scale
+    force = (-6 * aa * rinv6) * rinv1 / scale
     return pot, force
 
 
