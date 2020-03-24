@@ -92,7 +92,7 @@ def torchmd(args):
         traj.append(system.pos.cpu().numpy().copy())
         logs.write_row({'iter':i*args.output_period,'ns':FS2NS*i*args.output_period*args.timestep,'epot':Epot,
                             'ekin':Ekin,'etot':Epot+Ekin,'T':T})
-        if args.save_period % (i*args.output_period)  == 0:
+        if (i*args.output_period) % args.save_period  == 0:
             np.save(os.path.join(args.log_dir,args.output), np.stack(traj, axis=2)) #ideally we want to append
 
 if __name__ == "__main__":
