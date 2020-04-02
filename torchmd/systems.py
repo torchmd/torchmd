@@ -12,10 +12,11 @@ class System:
 class Systems:
     #the spacedimension
     spacedim = 2
-    def __init__(self,pos,vel,box,device):
+    def __init__(self, pos, vel, box, forces, device):
         self.pos = pos.to(device) #Nsystems,Natoms,3
         self.vel = vel.to(device) #Nsystems,Natoms,3
         self.box = box.to(device)
+        self.forces = forces.to(device)
 
     @property
     def natoms(self):

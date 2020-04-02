@@ -22,7 +22,9 @@ def get_args():
     parser.add_argument('--langevin-temperature',  default=0,type=float, help='Temperature in K of the thermostat')
     parser.add_argument('--langevin-gamma',  default=0.1,type=float, help='Langevin relaxation ps^-1')
     parser.add_argument('--device', default='cpu', help='Type of device, e.g. "cuda:1"')
-    parser.add_argument('--structure', default='./tests/argon/argon_start.pdb', help='Input PDB')
+    parser.add_argument('--structure', default=None, help='Deprecated: Input PDB')
+    parser.add_argument('--topology', default=None, type=str, help='Input topology')
+    parser.add_argument('--coordinates', default=None, type=str, help='Input coordinates')
     parser.add_argument('--forcefield', default="tests/argon/argon_forcefield.yaml", help='Forcefield .yaml file')
     parser.add_argument('--seed',type=int,default=1,help='random seed (default: 1)')
     parser.add_argument('--output-period',type=int,default=10,help='Store trajectory and print monitor.csv every period')
@@ -35,6 +37,7 @@ def get_args():
     parser.add_argument('--precision', default='single', type=str, help='LJ/Elec/Bond cutoff')
     parser.add_argument('--external', default=None, type=str, help='TODO')
     parser.add_argument('--rfa', default=False, action='store_true', help='Enable reaction field approximation')
+    parser.add_argument('--replicas', type=int, default=1, help='Number of different replicas to run')
     
     args = parser.parse_args()
     os.makedirs(args.log_dir,exist_ok=True)
@@ -51,49 +54,73 @@ def get_args():
 
     return args
 
+precisionmap = {'single': torch.float, 'double': torch.double}
+
 def torchmd(args):
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
     device = torch.device(args.device)
 
-    mol = Molecule(args.structure)
+    if args.topology is not None:
+        mol = Molecule(args.topology)
+    elif args.structure is not None:
+        mol = Molecule(args.structure)
+        mol.box = np.array([mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']]).reshape(3, 1).astype(np.float32)
+
+    if args.coordinates is not None:
+        mol.read(args.coordinates)
+
+    precision = precisionmap[args.precision]
+
     atom_types = mol.atomtype if mol.atomtype[0] else mol.name  #TODO: Fix this crap
     print(atom_types)
-    atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze())
-    box = torch.tensor([mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']])
-    if args.precision == 'double':
-        atom_pos = atom_pos.double() 
-        box = box.double()
+    atom_pos = torch.tensor(mol.coords).permute(2, 0, 1).type(precision)
+    box = torch.tensor(mol.box).permute(1, 0).type(precision)
+
+    if args.replicas > 1 and atom_pos.shape[0] != args.replicas:
+        atom_pos = atom_pos[0].repeat(args.replicas, 1, 1)
+        box = box[0].repeat(args.replicas, 1)
 
     natoms = len(atom_types)
     bonds = mol.bonds.astype(int).copy()
     angles = mol.angles.astype(int).copy()
 
     print("Force terms: ",args.forceterms)
-    forcefield = Forcefield(args.forcefield, precision=args.precision)
+    forcefield = Forcefield(args.forcefield, precision=precision)
     parameters = forcefield.create(atom_types,bonds=bonds,angles=angles)
 
-    atom_vel = maxwell_boltzmann(parameters.masses,args.temperature)
-    system = System(atom_pos,atom_vel,box,device)
-    forces = Forces(parameters,args.forceterms,device,external=args.external, cutoff=args.cutoff, 
-                                rfa=args.rfa, precision=args.precision)
-    integrator = Integrator(system,forces,args.timestep,device,gamma=args.langevin_gamma,T=args.langevin_temperature)
-    wrapper = Wrapper(natoms,bonds,device)
+    atom_vel = maxwell_boltzmann(parameters.masses, args.temperature, args.replicas)
+    atom_forces = torch.zeros(args.replicas, natoms, 3).to(device).type(precision)
 
-    traj = []
+    system = Systems(atom_pos, atom_vel, box, atom_forces, device)
+    forces = Forces(parameters, args.forceterms, device, external=args.external, cutoff=args.cutoff, 
+                                rfa=args.rfa, precision=precision)
+    integrator = Integrator(system, forces, args.timestep, device, gamma=args.langevin_gamma, T=args.langevin_temperature)
+    wrapper = Wrapper(natoms, bonds, device)
+
+    trajs = [[]] * args.replicas
+    outputname, outputext = os.path.splitext(args.output)
     #wrapper.wrap(system.pos,system.box)
     #traj.append(system.pos.cpu().numpy().copy())
-    logs = LogWriter(args.log_dir,keys=('iter','ns','epot','ekin','etot','T'))
+    logs = []
+    for k in range(args.replicas):
+        logs.append(LogWriter(args.log_dir,keys=('iter','ns','epot','ekin','etot','T'), name=f'monitor_{k}.csv'))
+
     iterator = tqdm(range(1,int(args.steps/args.output_period)+1))
-    Epot = forces.compute(system.pos,system.box)
+    Epot = forces.compute(system.pos, system.box, system.forces)
     for i in iterator:
-        Ekin,Epot,T = integrator.step(niter=args.output_period)
-        wrapper.wrap(system.pos,system.box)
-        traj.append(system.pos.cpu().numpy().copy())
-        logs.write_row({'iter':i*args.output_period,'ns':FS2NS*i*args.output_period*args.timestep,'epot':Epot,
-                            'ekin':Ekin,'etot':Epot+Ekin,'T':T})
-        if (i*args.output_period) % args.save_period  == 0:
-            np.save(os.path.join(args.log_dir,args.output), np.stack(traj, axis=2)) #ideally we want to append
+        Ekin, Epot, T = integrator.step(niter=args.output_period)
+        wrapper.wrap(system.pos, system.box)
+        currpos = system.pos.cpu().numpy().copy()
+        for k in range(args.replicas):
+            trajs[k].append(currpos[k])
+            if (i*args.output_period) % args.save_period  == 0:
+                np.save(os.path.join(args.log_dir, f"{outputname}_{k}{outputext}"), np.stack(trajs[k], axis=2)) #ideally we want to append
+            
+            logs[k].write_row({'iter':i*args.output_period,'ns':FS2NS*i*args.output_period*args.timestep,'epot':Epot[k],
+                                'ekin':Ekin[k],'etot':Epot[k]+Ekin[k],'T':T[k]})
+        
+                
 
 if __name__ == "__main__":
     args = get_args()

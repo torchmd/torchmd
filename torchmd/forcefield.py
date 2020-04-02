@@ -30,7 +30,7 @@ class Forcefield:
     '''
     This class takes as input the yaml forcefield file, the atom_types and outputs the system Parameters
     '''
-    def __init__(self,filename, precision='single'):
+    def __init__(self,filename, precision=torch.float):
         self.ff = yaml.load(open(filename), Loader=yaml.FullLoader)
         self.precision = precision
 
@@ -54,11 +54,8 @@ class Forcefield:
         sigma = np.array([self.ff["lj"][at]["sigma"] for at in sorted_keys], dtype=np.float64)
         epsilon = np.array([self.ff["lj"][at]["epsilon"] for at in sorted_keys], dtype=np.float64)
         A, B = calculateAB(sigma, epsilon)
-        A = torch.tensor(A)
-        B = torch.tensor(B)
-        if self.precision == 'single':
-            A = A.float()
-            B = B.float()
+        A = torch.tensor(A).type(self.precision)
+        B = torch.tensor(B).type(self.precision)
         return A,B
         
         
@@ -81,9 +78,7 @@ class Forcefield:
                     f"{pair_atomtype} doesn't have bond information in the FF"
                 )
             bond_params.append([bp["k0"], bp["req"]])
-        bond_params = torch.tensor(bond_params)
-        if self.precision == 'double':
-            bond_params = bond_params.double()
+        bond_params = torch.tensor(bond_params).type(self.precision)
         bonds = torch.tensor(uqbonds)
         return bond_params,bonds
 
@@ -108,9 +103,7 @@ class Forcefield:
                     f"{pair_atomtype} doesn't have bond information in the FF"
                 )
             angle_params.append([ap["k0"], np.deg2rad(ap["theta0"])])
-        angle_params = torch.tensor(angle_params)
-        if self.precision == 'double':
-            angle_params = angle_params.double()
+        angle_params = torch.tensor(angle_params).type(self.precision)
         angles = torch.tensor(uqangles)
         return angle_params, angles
 
