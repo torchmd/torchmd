@@ -22,7 +22,9 @@ def get_args():
     parser.add_argument('--langevin-temperature',  default=0,type=float, help='Temperature in K of the thermostat')
     parser.add_argument('--langevin-gamma',  default=0.1,type=float, help='Langevin relaxation ps^-1')
     parser.add_argument('--device', default='cpu', help='Type of device, e.g. "cuda:1"')
-    parser.add_argument('--structure', default='./tests/argon/argon_start.pdb', help='Input PDB')
+    parser.add_argument('--structure', default=None, help='Deprecated: Input PDB')
+    parser.add_argument('--topology', default=None, type=str, help='Input topology')
+    parser.add_argument('--coordinates', default=None, type=str, help='Input coordinates')
     parser.add_argument('--forcefield', default="tests/argon/argon_forcefield.yaml", help='Forcefield .yaml file')
     parser.add_argument('--seed',type=int,default=1,help='random seed (default: 1)')
     parser.add_argument('--output-period',type=int,default=10,help='Store trajectory and print monitor.csv every period')
@@ -35,6 +37,7 @@ def get_args():
     parser.add_argument('--precision', default='single', type=str, help='LJ/Elec/Bond cutoff')
     parser.add_argument('--external', default=None, type=str, help='TODO')
     parser.add_argument('--rfa', default=False, action='store_true', help='Enable reaction field approximation')
+    parser.add_argument('--replicas', type=int, default=1, help='Number of different replicas to run')
     
     args = parser.parse_args()
     os.makedirs(args.log_dir,exist_ok=True)
@@ -51,34 +54,44 @@ def get_args():
 
     return args
 
+precisionmap = {'single': torch.float, 'double': torch.double}
+
 def torchmd(args):
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
     device = torch.device(args.device)
 
-    mol = Molecule(args.structure)
+    if args.topology is not None:
+        mol = Molecule(args.topology)
+    elif args.structure is not None:
+        mol = Molecule(args.structure)
+        mol.box = np.array([mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']]).reshape(3, 1).astype(np.float32)
+
+    if args.coordinates is not None:
+        mol.read(args.coordinates)
+
+    precision = precisionmap[args.precision]
+
     atom_types = mol.atomtype if mol.atomtype[0] else mol.name  #TODO: Fix this crap
     print(atom_types)
-    atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze())
-    box = torch.tensor([mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']])
-    if args.precision == 'double':
-        atom_pos = atom_pos.double() 
-        box = box.double()
+    atom_pos = torch.tensor(mol.coords).permute(2, 0, 1).type(precision)
+    box = torch.tensor(mol.box).permute(1, 0).type(precision)
 
     natoms = len(atom_types)
     bonds = mol.bonds.astype(int).copy()
     angles = mol.angles.astype(int).copy()
 
     print("Force terms: ",args.forceterms)
-    forcefield = Forcefield(args.forcefield, precision=args.precision)
+    forcefield = Forcefield(args.forcefield, precision=precision)
     parameters = forcefield.create(atom_types,bonds=bonds,angles=angles)
 
-    atom_vel = maxwell_boltzmann(parameters.masses,args.temperature)
-    system = System(atom_pos,atom_vel,box,device)
-    forces = Forces(parameters,args.forceterms,device,external=args.external, cutoff=args.cutoff, 
-                                rfa=args.rfa, precision=args.precision)
-    integrator = Integrator(system,forces,args.timestep,device,gamma=args.langevin_gamma,T=args.langevin_temperature)
-    wrapper = Wrapper(natoms,bonds,device)
+    atom_vel = maxwell_boltzmann(parameters.masses, args.temperature, args.replicas)
+
+    system = Systems(atom_pos, atom_vel, box, device)
+    forces = Forces(parameters, args.forceterms, device, external=args.external, cutoff=args.cutoff, 
+                                rfa=args.rfa, precision=precision)
+    integrator = Integrator(system, forces, args.timestep, device, gamma=args.langevin_gamma, T=args.langevin_temperature)
+    wrapper = Wrapper(natoms, bonds, device)
 
     traj = []
     #wrapper.wrap(system.pos,system.box)

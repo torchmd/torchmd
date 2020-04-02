@@ -8,9 +8,13 @@ def kinetic_energy(masses,vel):
     Ekin = torch.sum(0.5 * torch.sum(vel * vel, dim=1,keepdim=True) * masses)
     return Ekin
 
-def maxwell_boltzmann(masses,T):
+def maxwell_boltzmann(masses,T, replicas=1):
     natoms = len(masses)
-    return torch.sqrt(T*BOLTZMAN/masses)*torch.randn((natoms,3))  
+    velocities = []
+    for i in range(replicas):
+        velocities.append(torch.sqrt(T*BOLTZMAN/masses)*torch.randn((natoms,3)))
+
+    return torch.stack(velocities, dim=0)
 
 def kinetic_to_temp(Ekin, natoms):
     return 2.0/(3.0 * natoms * BOLTZMAN) * Ekin 

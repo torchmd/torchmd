@@ -21,7 +21,7 @@ class Forces:
     """
     nonbonded = ["Electrostatics","LJ","Repulsion","RepulsionCG"]
 
-    def __init__(self, parameters, energies, device, external=None, exclude=("Bonds", "Angles"), cutoff=None, rfa=False, solventDielectric=78.5, precision='single'):
+    def __init__(self, parameters, energies, device, external=None, exclude=("Bonds", "Angles"), cutoff=None, rfa=False, solventDielectric=78.5, precision=torch.float):
         self.par = parameters
         self.par.to_(device) #TODO: I should really copy to gpu not update
         self.device = device
@@ -29,10 +29,7 @@ class Forces:
         self.natoms = len(parameters.masses)
         self.require_distances = any(f in self.nonbonded for f in self.energies)
         self.ava_idx = self._make_indeces(self.natoms, exclude) if self.require_distances else None
-        self.forces = torch.zeros(self.natoms, 3).to(self.device)
-        if precision == 'double':
-            self.forces = self.forces.double()
-
+        self.forces = torch.zeros(self.natoms, 3).to(self.device).type(precision)
         self.external = external
         self.cutoff = cutoff
         self.rfa = rfa
