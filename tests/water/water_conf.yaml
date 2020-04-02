@@ -1,16 +1,27 @@
-timestep: 1
-temperature: 300
-langevin_temperature: 300
-langevin_gamma: 0.1
-device: cpu
-# First load psf then pdb otherwise crystalinfo gets deleted
-structure: [tests/water/structure.psf, tests/water/structure.pdb]
+coordinates: null
+cutoff: 7.3
+device: cuda
+external: null
 forcefield: tests/water/water_forcefield.yaml
-seed: 1
-output_period: 1
-steps: 1000
+forceterms:
+- LJ
+- Bonds
+- Angles
+- Electrostatics
+langevin_gamma: 0.1
+langevin_temperature: 300
 log_dir: mywaterrun
 output: output
-cutoff: 7.3
-forceterms: [LJ, Bonds, Angles, Electrostatics]
+output_period: 1
 precision: double
+replicas: 2
+rfa: false
+save_period: 0
+seed: 1
+steps: 1000
+structure:
+- tests/water/structure.psf
+- tests/water/structure.pdb
+temperature: 300
+timestep: 1
+topology: null
