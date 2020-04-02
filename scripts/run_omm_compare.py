@@ -60,7 +60,7 @@ for forceterm, ommforceterm in zip(forceterms, ommforceterms):
     atom_vel = maxwell_boltzmann(parameters.masses,args.temperature)
     system = System(atom_pos,atom_vel,box,device)
     forces = Forces(parameters, forceterm, device, external=None, cutoff=7.3, rfa=True)
-    Epot = forces.compute(system.pos,system.box, returnDetails=True)
+    Epot = forces.compute(system.pos,system.box,system.forces, returnDetails=True)
     myforces = forces.forces.cpu().numpy()
 
     prm = parmed.charmm.CharmmParameterSet("./tests/water/parameters.prm")

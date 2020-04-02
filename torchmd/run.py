@@ -77,6 +77,10 @@ def torchmd(args):
     atom_pos = torch.tensor(mol.coords).permute(2, 0, 1).type(precision)
     box = torch.tensor(mol.box).permute(1, 0).type(precision)
 
+    if args.replicas > 1 and atom_pos.shape[0] != args.replicas:
+        atom_pos = atom_pos[0].repeat(args.replicas, 1, 1)
+        box = box[0].repeat(args.replicas, 1)
+
     natoms = len(atom_types)
     bonds = mol.bonds.astype(int).copy()
     angles = mol.angles.astype(int).copy()
@@ -86,27 +90,37 @@ def torchmd(args):
     parameters = forcefield.create(atom_types,bonds=bonds,angles=angles)
 
     atom_vel = maxwell_boltzmann(parameters.masses, args.temperature, args.replicas)
+    atom_forces = torch.zeros(args.replicas, natoms, 3).to(device).type(precision)
 
-    system = Systems(atom_pos, atom_vel, box, device)
+    system = Systems(atom_pos, atom_vel, box, atom_forces, device)
     forces = Forces(parameters, args.forceterms, device, external=args.external, cutoff=args.cutoff, 
                                 rfa=args.rfa, precision=precision)
     integrator = Integrator(system, forces, args.timestep, device, gamma=args.langevin_gamma, T=args.langevin_temperature)
     wrapper = Wrapper(natoms, bonds, device)
 
-    traj = []
+    trajs = [[]] * args.replicas
+    outputname, outputext = os.path.splitext(args.output)
     #wrapper.wrap(system.pos,system.box)
     #traj.append(system.pos.cpu().numpy().copy())
-    logs = LogWriter(args.log_dir,keys=('iter','ns','epot','ekin','etot','T'))
+    logs = []
+    for k in range(args.replicas):
+        logs.append(LogWriter(args.log_dir,keys=('iter','ns','epot','ekin','etot','T'), name=f'monitor_{k}.csv'))
+
     iterator = tqdm(range(1,int(args.steps/args.output_period)+1))
-    Epot = forces.compute(system.pos,system.box)
+    Epot = forces.compute(system.pos, system.box, system.forces)
     for i in iterator:
-        Ekin,Epot,T = integrator.step(niter=args.output_period)
-        wrapper.wrap(system.pos,system.box)
-        traj.append(system.pos.cpu().numpy().copy())
-        logs.write_row({'iter':i*args.output_period,'ns':FS2NS*i*args.output_period*args.timestep,'epot':Epot,
-                            'ekin':Ekin,'etot':Epot+Ekin,'T':T})
-        if (i*args.output_period) % args.save_period  == 0:
-            np.save(os.path.join(args.log_dir,args.output), np.stack(traj, axis=2)) #ideally we want to append
+        Ekin, Epot, T = integrator.step(niter=args.output_period)
+        wrapper.wrap(system.pos, system.box)
+        currpos = system.pos.cpu().numpy().copy()
+        for k in range(args.replicas):
+            trajs[k].append(currpos[k])
+            if (i*args.output_period) % args.save_period  == 0:
+                np.save(os.path.join(args.log_dir, f"{outputname}_{k}{outputext}"), np.stack(trajs[k], axis=2)) #ideally we want to append
+            
+            logs[k].write_row({'iter':i*args.output_period,'ns':FS2NS*i*args.output_period*args.timestep,'epot':Epot[k],
+                                'ekin':Ekin[k],'etot':Epot[k]+Ekin[k],'T':T[k]})
+        
+                
 
 if __name__ == "__main__":
     args = get_args()

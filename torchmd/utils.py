@@ -13,11 +13,15 @@ import numpy as np
 class LogWriter(object):
     #kind of inspired form openai.baselines.bench.monitor
     #We can add here an optional Tensorboard logger as well
-    def __init__(self, path, keys, header=''):
+    def __init__(self, path, keys, header='', name='monitor.csv'):
         self.keys = tuple(keys)+('t',)
         assert path is not None
-        self._clean_log_dir(path)
-        filename = os.path.join(path, 'monitor.csv')
+        
+        os.makedirs(path, exist_ok=True)
+        filename = os.path.join(path, name)
+        if os.path.exists(filename):
+            os.remove(filename)
+
         print("Writing logs to ",filename)
 
         self.f = open(filename, "wt")
@@ -35,14 +39,6 @@ class LogWriter(object):
             epinfo['t'] = t
             self.logger.writerow(epinfo)
             self.f.flush()
-
-    def _clean_log_dir(self,log_dir):
-        try:
-            os.makedirs(log_dir)
-        except OSError:
-            files = glob.glob(os.path.join(log_dir, '*.csv'))
-            for f in files:
-                os.remove(f)
 
 class LoadFromFile(argparse.Action):
 #parser.add_argument('--file', type=open, action=LoadFromFile)

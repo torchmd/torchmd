@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 
 TIMEFACTOR = 48.88821
@@ -5,7 +6,7 @@ BOLTZMAN = 0.001987191
 
 
 def kinetic_energy(masses, vel):
-    Ekin = torch.sum(0.5 * torch.sum(vel * vel, dim=1, keepdim=True) * masses)
+    Ekin = torch.sum(0.5 * torch.sum(vel * vel, dim=2, keepdim=True) * masses, dim=1)
     return Ekin
 
 
@@ -61,12 +62,12 @@ class Integrator:
         masses = self.forces.par.masses
         natoms = len(masses)
         for _ in range(niter):
-            _first_VV(s.pos, s.vel, self.forces.forces, masses, self.dt)
-            pot = self.forces.compute(s.pos, s.box)
+            _first_VV(s.pos, s.vel, s.forces, masses, self.dt)
+            pot = self.forces.compute(s.pos, s.box, s.forces)
             if self.T:
                 langevin(s.vel, self.gamma, self.vcoeff, self.dt, self.device)
-            _second_VV(s.vel, self.forces.forces, masses, self.dt)
+            _second_VV(s.vel, s.forces, masses, self.dt)
 
-        Ekin = kinetic_energy(masses, s.vel).item()
+        Ekin = np.array([v.item() for v in kinetic_energy(masses, s.vel)])
         T = kinetic_to_temp(Ekin, natoms)
         return Ekin, pot, T

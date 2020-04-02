@@ -19,17 +19,22 @@ class Forces:
         solventDielectric : float
             Used together with `cutoff` and `rfa`
     """
-    nonbonded = ["Electrostatics","LJ","Repulsion","RepulsionCG"]
+    bonded = ["Bonds", "Angles"]
+    nonbonded = ["Electrostatics", "LJ", "Repulsion", "RepulsionCG"]
+    terms = bonded + nonbonded
 
     def __init__(self, parameters, energies, device, external=None, exclude=("Bonds", "Angles"), cutoff=None, rfa=False, solventDielectric=78.5, precision=torch.float):
         self.par = parameters
         self.par.to_(device) #TODO: I should really copy to gpu not update
         self.device = device
         self.energies = energies
+        for et in energies:
+            if et not in self.terms:
+                raise ValueError(f"Force term {et} is not implemented.")
+
         self.natoms = len(parameters.masses)
         self.require_distances = any(f in self.nonbonded for f in self.energies)
         self.ava_idx = self._make_indeces(self.natoms, exclude) if self.require_distances else None
-        self.forces = torch.zeros(self.natoms, 3).to(self.device).type(precision)
         self.external = external
         self.cutoff = cutoff
         self.rfa = rfa
@@ -42,83 +47,81 @@ class Forces:
             indexedarrays.append(arr[under_cutoff])
         return indexedarrays
 
-    def compute(self, pos, box, returnDetails=False):
-        pot = {v: 0 for v in self.energies}
-        pot["external"] = 0
-        self.forces.zero_()
-        if self.require_distances:
-            # Lazy mode: Do all vs all distances
-            nb_dist, nb_unitvec, _ = calculateDistances(pos, self.ava_idx[:, 0], self.ava_idx[:, 1], box)
-            ava_idx = self.ava_idx
-            if self.cutoff is not None:
-                nb_dist, nb_unitvec, ava_idx = self._filterByCutoff(nb_dist, (nb_dist, nb_unitvec, ava_idx))
-                # under_cutoff = nb_dist <= self.cutoff
-                # nb_dist = nb_dist[under_cutoff]
-                # nb_unitvec = nb_unitvec[under_cutoff]
-                # ava_idx = self.ava_idx[under_cutoff]
+    def compute(self, pos, box, forces, returnDetails=False):
+        nsystems = pos.shape[0]
 
-        for v in self.energies:
-            if v=="Bonds":
-                bond_dist, bond_unitvec, _ = calculateDistances(pos, self.par.bonds[:, 0], self.par.bonds[:, 1], box)
-                # TODO: Implement cutoff for bonds
+        pot = []
+        for i in range(nsystems):
+            pp = {v: 0 for v in self.energies}
+            pp["external"] = 0
+            pot.append(pp)
+
+        forces.zero_()
+        for i in range(nsystems):
+            spos = pos[i]
+            sbox = box[i]
+
+            # Bonded terms
+            # TODO: We are for sure doing duplicate distance calculations here!
+            if "Bonds" in self.energies:
+                bond_dist, bond_unitvec, _ = calculateDistances(spos, self.par.bonds, sbox)
                 pairs = self.par.bonds
                 bond_params = self.par.bond_params
                 if self.cutoff is not None:
                     bond_dist, bond_unitvec, pairs, bond_params = self._filterByCutoff(bond_dist, (bond_dist, bond_unitvec, pairs, bond_params))
-                    # under_cutoff = bond_dist <= self.cutoff
-                    # bond_dist = bond_dist[under_cutoff]
-                    # bond_unitvec = bond_unitvec[under_cutoff]
-                    # pairs = self.par.bonds[under_cutoff]
-                    # bond_params = self.par.bond_params[under_cutoff]
-
                 E, force_coeff = evaluateBonds(bond_dist, bond_params)
-                pot[v] += E.cpu().sum().item()
-                unitvec = bond_unitvec
-            elif v=="Angles":
-                E, angle_forces = evaluateAngles(pos, self.par.angles, self.par.angle_params, box)
-                pot[v] += E.cpu().sum().item()
-                self.forces.index_add_(0, self.par.angles[:, 0], angle_forces[0])
-                self.forces.index_add_(0, self.par.angles[:, 1], angle_forces[1])
-                self.forces.index_add_(0, self.par.angles[:, 2], angle_forces[2])
-                continue
-            elif v=="Electrostatics":
-                E, force_coeff = evaluateElectrostatics(nb_dist, ava_idx, self.par.charges, cutoff=self.cutoff, rfa=self.rfa, solventDielectric=self.solventDielectric)
-                pot[v] += E.cpu().sum().item()
-                pairs = ava_idx
-                unitvec = nb_unitvec
-            elif v=="LJ":
-                E, force_coeff = evaluateLJ(nb_dist, ava_idx, self.par.mapped_atom_types, self.par.A, self.par.B)
-                pot[v] += E.cpu().sum().item()
-                pairs = ava_idx
-                unitvec = nb_unitvec
-            elif v=="Repulsion":
-                E, force_coeff = evaluateRepulsion(nb_dist, ava_idx, self.par.mapped_atom_types, self.par.A)
-                pot[v] += E.cpu().sum().item()
-                pairs = ava_idx
-                unitvec = nb_unitvec  
-            elif v=="RepulsionCG":
-                E, force_coeff = evaluateRepulsionCG(nb_dist, ava_idx, self.par.mapped_atom_types, self.par.B)
-                pot[v] += E.cpu().sum().item()
-                pairs = ava_idx
-                unitvec = nb_unitvec
-            elif v=='': #to allow no terms
-                continue
-            else:
-                raise ValueError("Force term {} of {} not available".format(v,self.energies))
 
-            #pot += E.cpu().sum().item()
-            self.forces.index_add_(0, pairs[:, 0], -unitvec * force_coeff[:, None])
-            self.forces.index_add_(0, pairs[:, 1], unitvec * force_coeff[:, None])
+                pot[i]["Bonds"] += E.cpu().sum().item()
+                forces[i].index_add_(0, pairs[:, 0], -bond_unitvec * force_coeff[:, None])
+                forces[i].index_add_(0, pairs[:, 1], bond_unitvec * force_coeff[:, None])
 
-        if self.external:
-            ext_ene, ext_force = self.external.calculate(pos, box)
-            pot["external"] += ext_ene.item()
-            self.forces += ext_force
+            if "Angles" in self.energies:
+                _, _, r21 = calculateDistances(spos, self.par.angles[:, [0, 1]], sbox)
+                _, _, r23 = calculateDistances(spos, self.par.angles[:, [2, 1]], sbox)
+                E, angle_forces = evaluateAngles(r21, r23, self.par.angle_params)
+
+                pot[i]["Angles"] += E.cpu().sum().item()
+                forces[i].index_add_(0, self.par.angles[:, 0], angle_forces[0])
+                forces[i].index_add_(0, self.par.angles[:, 1], angle_forces[1])
+                forces[i].index_add_(0, self.par.angles[:, 2], angle_forces[2])
+
+            # Non-bonded terms
+            if self.require_distances:
+                # Lazy mode: Do all vs all distances
+                # TODO: These distance calculations are fucked once we do neighbourlists since they will vary per system!!!!
+                nb_dist, nb_unitvec, _ = calculateDistances(spos, self.ava_idx, sbox)
+                ava_idx = self.ava_idx
+                if self.cutoff is not None:
+                    nb_dist, nb_unitvec, ava_idx = self._filterByCutoff(nb_dist, (nb_dist, nb_unitvec, ava_idx))
+        
+                for v in self.energies:
+                    if v=="Electrostatics":
+                        E, force_coeff = evaluateElectrostatics(nb_dist, ava_idx, self.par.charges, cutoff=self.cutoff, rfa=self.rfa, solventDielectric=self.solventDielectric)
+                        pot[i][v] += E.cpu().sum().item()
+                    elif v=="LJ":
+                        E, force_coeff = evaluateLJ(nb_dist, ava_idx, self.par.mapped_atom_types, self.par.A, self.par.B)
+                        pot[i][v] += E.cpu().sum().item()
+                    elif v=="Repulsion":
+                        E, force_coeff = evaluateRepulsion(nb_dist, ava_idx, self.par.mapped_atom_types, self.par.A)
+                        pot[i][v] += E.cpu().sum().item()
+                    elif v=="RepulsionCG":
+                        E, force_coeff = evaluateRepulsionCG(nb_dist, ava_idx, self.par.mapped_atom_types, self.par.B)
+                        pot[i][v] += E.cpu().sum().item()
+                    elif v=='': #to allow no terms
+                        continue
+
+                    forces[i].index_add_(0, ava_idx[:, 0], -nb_unitvec * force_coeff[:, None])
+                    forces[i].index_add_(0, ava_idx[:, 1], nb_unitvec * force_coeff[:, None])
+
+            if self.external:
+                ext_ene, ext_force = self.external.calculate(spos, sbox)
+                pot[i]["external"] += ext_ene.item()
+                forces[i] += ext_force
 
         if returnDetails:
             return pot
         else:
-            return np.sum([v for _, v in pot.items()])
+            return [np.sum([v for _, v in pp.items()]) for pp in pot]
 
     def _make_indeces(self,natoms, exclude):
         excludepairs = []
@@ -145,13 +148,13 @@ def wrap_dist(dist, box):
     if box is None or torch.all(box == 0):
         wdist = dist
     else:
-        wdist = dist - box[None, :] * torch.round(dist / box[None, :])
+        wdist = dist - box.unsqueeze(0) * torch.round(dist / box.unsqueeze(0))
     return wdist
 
-def calculateDistances(atom_pos, atom_idx1, atom_idx2, box):
-    direction_vec = wrap_dist(atom_pos[atom_idx1, :] - atom_pos[atom_idx2, :], box)
+def calculateDistances(atom_pos, atom_idx, box):
+    direction_vec = wrap_dist(atom_pos[atom_idx[:, 0]] - atom_pos[atom_idx[:, 1]], box)
     dist = torch.norm(direction_vec, dim=1)
-    direction_unitvec = direction_vec / dist[:, None]
+    direction_unitvec = direction_vec / dist.unsqueeze(1)
     return dist, direction_unitvec, direction_vec
 
 
@@ -232,12 +235,10 @@ def evaluateBonds(dist, bond_params):
     return pot, force
 
 
-def evaluateAngles(pos, angles, angle_params, box):
+def evaluateAngles(r21, r23, angle_params):
     k0 = angle_params[:, 0]
     theta0 = angle_params[:, 1]
 
-    _, _, r23 = calculateDistances(pos, angles[:, 2], angles[:, 1], box)
-    _, _, r21 = calculateDistances(pos, angles[:, 0], angles[:, 1], box)
     dotprod = torch.sum(r23 * r21, dim=1)
     norm23inv = 1 / torch.norm(r23, dim=1)
     norm21inv = 1 / torch.norm(r21, dim=1)
@@ -260,3 +261,4 @@ def evaluateAngles(pos, angles, angle_params, box):
     force1 = - (force0 + force2)
 
     return pot, (force0, force1, force2)
+
