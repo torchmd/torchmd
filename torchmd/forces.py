@@ -107,7 +107,7 @@ class Forces:
                     elif v=="RepulsionCG":
                         E, force_coeff = evaluateRepulsionCG(nb_dist, ava_idx, self.par.mapped_atom_types, self.par.B)
                         pot[i][v] += E.cpu().sum().item()
-                    elif v=='': #to allow no terms
+                    else:
                         continue
 
                     forces[i].index_add_(0, ava_idx[:, 0], -nb_unitvec * force_coeff[:, None])
