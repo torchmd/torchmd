@@ -107,16 +107,16 @@ class Forces:
                     elif v=="RepulsionCG":
                         E, force_coeff = evaluateRepulsionCG(nb_dist, ava_idx, self.par.mapped_atom_types, self.par.B)
                         pot[i][v] += E.cpu().sum().item()
-                    elif v=='': #to allow no terms
+                    else:
                         continue
 
                     forces[i].index_add_(0, ava_idx[:, 0], -nb_unitvec * force_coeff[:, None])
                     forces[i].index_add_(0, ava_idx[:, 1], nb_unitvec * force_coeff[:, None])
 
-            if self.external:
-                ext_ene, ext_force = self.external.calculate(spos, sbox)
-                pot[i]["external"] += ext_ene.item()
-                forces[i] += ext_force
+        if self.external:
+            ext_ene, ext_force = self.external.calculate(pos, box)
+            pot["external"] += ext_ene.item()
+            forces += ext_force
 
         if returnDetails:
             return pot
