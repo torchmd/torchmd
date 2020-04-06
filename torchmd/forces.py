@@ -115,7 +115,8 @@ class Forces:
 
         if self.external:
             ext_ene, ext_force = self.external.calculate(pos, box)
-            pot["external"] += ext_ene.item()
+            for s in range(nsystems):
+                pot[s]["external"] += ext_ene[s].item()
             forces += ext_force
 
         if returnDetails:
