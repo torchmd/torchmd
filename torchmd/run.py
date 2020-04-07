@@ -10,6 +10,7 @@ import numpy as np
 from tqdm import tqdm
 import argparse
 import math
+import importlib
 from torchmd.integrator import maxwell_boltzmann
 from torchmd.utils import save_argparse, LogWriter,LoadFromFile
 FS2NS=1.0/1000000.0
@@ -35,7 +36,7 @@ def get_args():
     parser.add_argument('--forceterms', nargs='+', default="LJ", help='Forceterms to include, e.g. --forceterms Bonds LJ')
     parser.add_argument('--cutoff', default=None, type=float, help='LJ/Elec/Bond cutoff')
     parser.add_argument('--precision', default='single', type=str, help='LJ/Elec/Bond cutoff')
-    parser.add_argument('--external', default=None, type=str, help='TODO')
+    parser.add_argument('--external', default=None, type=dict, help='External calculator config')
     parser.add_argument('--rfa', default=False, action='store_true', help='Enable reaction field approximation')
     parser.add_argument('--replicas', type=int, default=1, help='Number of different replicas to run')
     
@@ -92,19 +93,23 @@ def torchmd(args):
     atom_vel = maxwell_boltzmann(parameters.masses, args.temperature, args.replicas)
     atom_forces = torch.zeros(args.replicas, natoms, 3).to(device).type(precision)
 
+    external = None
+    if args.external is not None:
+        externalmodule = importlib.import_module(args.external["module"])
+        external = externalmodule.External(args.external["file"], args.external["embeddings"], device)
+
     system = Systems(atom_pos, atom_vel, box, atom_forces, device)
-    forces = Forces(parameters, args.forceterms, device, external=args.external, cutoff=args.cutoff, 
+    forces = Forces(parameters, args.forceterms, device, external=external, cutoff=args.cutoff, 
                                 rfa=args.rfa, precision=precision)
     integrator = Integrator(system, forces, args.timestep, device, gamma=args.langevin_gamma, T=args.langevin_temperature)
     wrapper = Wrapper(natoms, bonds, device)
 
-    trajs = [[]] * args.replicas
     outputname, outputext = os.path.splitext(args.output)
-    #wrapper.wrap(system.pos,system.box)
-    #traj.append(system.pos.cpu().numpy().copy())
+    trajs = []
     logs = []
     for k in range(args.replicas):
         logs.append(LogWriter(args.log_dir,keys=('iter','ns','epot','ekin','etot','T'), name=f'monitor_{k}.csv'))
+        trajs.append([])
 
     iterator = tqdm(range(1,int(args.steps/args.output_period)+1))
     Epot = forces.compute(system.pos, system.box, system.forces)
