@@ -1,0 +1,4 @@
+pyyaml
+ipython
+torch
+torchvision
