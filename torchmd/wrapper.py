@@ -6,6 +6,7 @@ class Wrapper:
 
     def wrap(self, pos, box, wrapidx=None):
         nmol = len(self.groups)
+        box = box[:, torch.eye(3).bool()] # Use only the diagonal
 
         if wrapidx is not None:
             # Get COM of wrapping center group

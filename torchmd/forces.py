@@ -59,7 +59,7 @@ class Forces:
         forces.zero_()
         for i in range(nsystems):
             spos = pos[i]
-            sbox = box[i]
+            sbox = box[i][torch.eye(3).bool()]  # Use only the diagonal
 
             # Bonded terms
             # TODO: We are for sure doing duplicate distance calculations here!

@@ -23,6 +23,6 @@ coordinates: tests/cg/cg_structure.xtc
 temperature: 350
 timestep: 1
 external:
-  module: nnp.calculators.calc1
+  module: nnp.calculators.torchmdcalc
   embeddings: [5,  1,  4,  1, 10,  7, 21, 20,  5,  2,  2,  8, 12, 12,  2, 19, 8,  8,  8, 12]
   file: tests/cg/acemdq.ckp.40

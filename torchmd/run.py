@@ -76,11 +76,15 @@ def torchmd(args):
     atom_types = mol.atomtype if mol.atomtype[0] else mol.name  #TODO: Fix this crap
     print(atom_types)
     atom_pos = torch.tensor(mol.coords).permute(2, 0, 1).type(precision)
-    box = torch.tensor(mol.box).permute(1, 0).type(precision)
 
+    box = np.swapaxes(mol.box, 1, 0).astype(np.float64)
     if args.replicas > 1 and atom_pos.shape[0] != args.replicas:
         atom_pos = atom_pos[0].repeat(args.replicas, 1, 1)
-        box = box[0].repeat(args.replicas, 1)
+        box = np.repeat(box[0][None, :], args.replicas, axis=0)
+
+    box_full = torch.zeros((args.replicas, 3, 3)).type(precision)
+    for r in range(box.shape[0]):
+        box_full[r][torch.eye(3).bool()] = torch.tensor(box[r]).type(precision)
 
     natoms = len(atom_types)
     bonds = mol.bonds.astype(int).copy()
@@ -96,9 +100,10 @@ def torchmd(args):
     external = None
     if args.external is not None:
         externalmodule = importlib.import_module(args.external["module"])
-        external = externalmodule.External(args.external["file"], args.external["embeddings"], device)
+        embeddings = torch.tensor(args.external["embeddings"]).repeat(args.replicas, 1)
+        external = externalmodule.External(args.external["file"], embeddings, device)
 
-    system = Systems(atom_pos, atom_vel, box, atom_forces, device)
+    system = Systems(atom_pos, atom_vel, box_full, atom_forces, device)
     forces = Forces(parameters, args.forceterms, device, external=external, cutoff=args.cutoff, 
                                 rfa=args.rfa, precision=precision)
     integrator = Integrator(system, forces, args.timestep, device, gamma=args.langevin_gamma, T=args.langevin_temperature)
@@ -116,7 +121,7 @@ def torchmd(args):
     for i in iterator:
         Ekin, Epot, T = integrator.step(niter=args.output_period)
         wrapper.wrap(system.pos, system.box)
-        currpos = system.pos.cpu().numpy().copy()
+        currpos = system.pos.detach().cpu().numpy().copy()
         for k in range(args.replicas):
             trajs[k].append(currpos[k])
             if (i*args.output_period) % args.save_period  == 0:
