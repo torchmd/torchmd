@@ -19,26 +19,43 @@ from ffevaluation.test_ffevaluate import openmm_energy, keepForces
 from ffevaluation.ffevaluate import FFEvaluate
 FS2NS=1.0/1000000.0
 
-
+precisionmap = {'single': torch.float, 'double': torch.double}
 args = Namespace(**yaml.load(open("./tests/water/water_conf.yaml", 'r'), Loader=yaml.FullLoader))
-
+replicas = 1
 torch.manual_seed(args.seed)
 torch.cuda.manual_seed_all(args.seed)
 device = torch.device(args.device)
 
 mol = Molecule(args.structure)
-#mol.atomtype[:] = "AR"  #TODO: To fix this!!!
-#mol.coords = np.load(args.log_dir+"/output.npy")
 frame = 0
 mol.dropFrames(keep=frame)
-
-atom_types = mol.atomtype if mol.atomtype is not None else mol.name
-atom_pos = torch.tensor(mol.coords[:, :, 0].squeeze()).double()
-box = torch.tensor([mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']]).double()
 mol.box[:] = np.array([[mol.crystalinfo['a'],mol.crystalinfo['b'],mol.crystalinfo['c']]]).T
+
+if args.coordinates is not None:
+    mol.read(args.coordinates)
+
+precision = precisionmap[args.precision]
+
+atom_types = mol.atomtype if mol.atomtype[0] else mol.name  #TODO: Fix this crap
+print(atom_types)
+atom_pos = torch.tensor(mol.coords).permute(2, 0, 1).type(precision)
+
+box = np.swapaxes(mol.box, 1, 0).astype(np.float64)
+
+box_full = torch.zeros((replicas, 3, 3)).type(precision)
+for r in range(box.shape[0]):
+    box_full[r][torch.eye(3).bool()] = torch.tensor(box[r]).type(precision)
+
 natoms = len(atom_types)
 bonds = mol.bonds.astype(int).copy()
 angles = mol.angles.astype(int).copy()
+
+print("Force terms: ",args.forceterms)
+forcefield = Forcefield(args.forcefield, precision=precision)
+parameters = forcefield.create(atom_types,bonds=bonds,angles=angles)
+
+atom_vel = maxwell_boltzmann(parameters.masses, args.temperature, replicas)
+atom_forces = torch.zeros(replicas, natoms, 3).to(device).type(precision)
 
 mol.charge[mol.atomtype == "HT"] = 0.417000
 mol.charge[mol.atomtype == "OT"] = -0.834000
@@ -56,12 +73,12 @@ for forceterm, ommforceterm in zip(forceterms, ommforceterms):
     print("Force terms: ",forceterm)
     forcefield = Forcefield(args.forcefield)
     parameters = forcefield.create(atom_types,bonds=bonds,angles=angles)
-
-    atom_vel = maxwell_boltzmann(parameters.masses,args.temperature)
-    system = System(atom_pos,atom_vel,box,device)
-    forces = Forces(parameters, forceterm, device, external=None, cutoff=7.3, rfa=True)
-    Epot = forces.compute(system.pos,system.box,system.forces, returnDetails=True)
-    myforces = forces.forces.cpu().numpy()
+    
+    system = Systems(atom_pos, atom_vel, box_full, atom_forces, device)
+    forces = Forces(parameters, forceterm, device, external=None, cutoff=7.3, 
+                                rfa=True, precision=precision)
+    Epot = forces.compute(system.pos,system.box,system.forces, returnDetails=True)[0]
+    myforces = system.forces.cpu().numpy()[0]
 
     prm = parmed.charmm.CharmmParameterSet("./tests/water/parameters.prm")
     struct = parmed.charmm.CharmmPsfFile("./tests/water/structure.psf")
