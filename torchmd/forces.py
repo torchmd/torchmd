@@ -49,6 +49,8 @@ class Forces:
 
     def compute(self, pos, box, forces, returnDetails=False):
         nsystems = pos.shape[0]
+        if torch.any(torch.isnan(pos)):
+            raise RuntimeError("Found NaN coordinates.")
 
         pot = []
         for i in range(nsystems):
