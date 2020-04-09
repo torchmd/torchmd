@@ -1,12 +1,15 @@
 import torch
 
+
 class Wrapper:
     def __init__(self, natoms, bonds, device):
         self.groups, self.nongrouped = calculateMoleculeGroups(natoms, bonds, device)
 
     def wrap(self, pos, box, wrapidx=None):
         nmol = len(self.groups)
-        box = box[:, torch.eye(3).bool()] # Use only the diagonal
+        box = box[:, torch.eye(3).bool()]  # Use only the diagonal
+        if torch.all(box == 0):
+            return
 
         if wrapidx is not None:
             # Get COM of wrapping center group
