@@ -87,8 +87,19 @@ def torchmd(args):
         box_full[r][torch.eye(3).bool()] = torch.tensor(box[r]).type(precision)
 
     natoms = len(atom_types)
-    bonds = mol.bonds.astype(int).copy()
-    angles = mol.angles.astype(int).copy()
+    
+    exclude = []
+    if 'Bonds' in args.forceterms:
+        bonds = mol.bonds.astype(int).copy()
+        exclude.append('Bonds')
+    else:
+        bonds = None
+
+    if 'Angles' in args.forceterms:
+        angles = mol.angles.astype(int).copy()
+        exclude.append('Angles')
+    else:
+        angles = None
 
     print("Force terms: ",args.forceterms)
     forcefield = Forcefield(args.forcefield, precision=precision)
@@ -105,7 +116,7 @@ def torchmd(args):
 
     system = Systems(atom_pos, atom_vel, box_full, atom_forces, device)
     forces = Forces(parameters, args.forceterms, device, external=external, cutoff=args.cutoff, 
-                                rfa=args.rfa, precision=precision)
+                                rfa=args.rfa, precision=precision, exclude=tuple(exclude))
     integrator = Integrator(system, forces, args.timestep, device, gamma=args.langevin_gamma, T=args.langevin_temperature)
     wrapper = Wrapper(natoms, bonds, device)
 
