@@ -38,7 +38,8 @@ class Forcefield:
         atomtype_map = {}
         for i, at in enumerate(self.ff["atomtypes"]):
             atomtype_map[at] = i
-        self.embeddings = [atomtype_map[at] for at in atom_types]
+        #Atom types in integer form starting from 1 (0 excluded for schnet)    
+        self.embeddings = [atomtype_map[at]+1 for at in atom_types]
         par = Parameters()
         par.mapped_atom_types = torch.tensor([atomtype_map[at] for at in atom_types]) 
         par.A,par.B=self.make_lj(atomtype_map)
