@@ -28,7 +28,7 @@ class Forces:
         self.par.to_(device) #TODO: I should really copy to gpu not update
         self.device = device
         self.energies = [ene.lower() for ene in energies]
-        for et in energies:
+        for et in self.energies:
             if et not in self.terms:
                 raise ValueError(f"Force term {et} is not implemented.")
 
