@@ -88,8 +88,7 @@ def torchmd(args):
     args.forceterms = [term.lower() for term in args.forceterms]
     print("Force terms: ",args.forceterms)
     ff = YamlForcefield(mol, args.forcefield)
-    parameters = Parameters(ff, mol, args.forceterms)
-    parameters.precision_(precision)
+    parameters = Parameters(ff, mol, args.forceterms, precision=precision)
 
     atom_vel = maxwell_boltzmann(parameters.masses, args.temperature, args.replicas)
     atom_forces = torch.zeros(args.replicas, mol.numAtoms, 3).to(device).type(precision)

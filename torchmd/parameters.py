@@ -4,7 +4,13 @@ import numpy as np
 
 
 class Parameters:
-    def __init__(self, ff, mol, terms=("bonds", "angles", "dihedrals", "impropers")):
+    def __init__(
+        self,
+        ff,
+        mol,
+        terms=("bonds", "angles", "dihedrals", "impropers"),
+        precision=torch.float,
+    ):
         self.A = None
         self.B = None
         self.bonds = None
@@ -22,6 +28,7 @@ class Parameters:
 
         terms = [term.lower() for term in terms]
         self.build_parameters(ff, mol, terms)
+        self.precision_(precision)
 
     def to_(self, device):
         self.A = self.A.to(device)
