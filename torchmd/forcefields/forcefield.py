@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
+import os
 
 
-class ForceField(ABC):
+class _ForceFieldBase(ABC):
     def __init__(self):
         pass
 
@@ -40,3 +41,18 @@ class ForceField(ABC):
     @abstractmethod
     def getImproper(self, at1, at2, at3, at4):
         pass
+
+
+class ForceField:
+    def create(mol, prm):
+        from torchmd.forcefields.ff_yaml import YamlForcefield
+        from torchmd.forcefields.ff_parmed import ParmedForcefield
+
+        parmedext = [".prm", ".prmtop", ".frcmod"]
+        yamlext = [".yaml", ".yml"]
+        if isinstance(prm, str):
+            ext = os.path.splitext(prm)[-1]
+            if ext in parmedext:
+                return ParmedForcefield(mol, prm)
+            elif ext in yamlext:
+                return YamlForcefield(mol, prm)

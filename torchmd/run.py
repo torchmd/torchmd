@@ -2,7 +2,7 @@ import os
 import torch
 from torchmd.systems import Systems, System
 from moleculekit.molecule import Molecule
-from torchmd.forcefields.ff_yaml import YamlForcefield
+from torchmd.forcefields.forcefield import ForceField
 from torchmd.parameters import Parameters
 from torchmd.forces import Forces
 from torchmd.integrator import Integrator
@@ -87,7 +87,7 @@ def torchmd(args):
 
     args.forceterms = [term.lower() for term in args.forceterms]
     print("Force terms: ",args.forceterms)
-    ff = YamlForcefield(mol, args.forcefield)
+    ff = ForceField.create(mol, args.forcefield)
     parameters = Parameters(ff, mol, args.forceterms, precision=precision)
 
     atom_vel = maxwell_boltzmann(parameters.masses, args.temperature, args.replicas)

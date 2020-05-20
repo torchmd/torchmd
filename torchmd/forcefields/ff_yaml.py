@@ -1,10 +1,10 @@
-from torchmd.forcefields.forcefield import ForceField
+from torchmd.forcefields.forcefield import _ForceFieldBase
 from math import radians
 import numpy as np
 import yaml
 
 
-class YamlForcefield(ForceField):
+class YamlForcefield(_ForceFieldBase):
     def __init__(self, mol, prm):
         self.mol = mol
         self.prm = yaml.load(open(prm), Loader=yaml.FullLoader)

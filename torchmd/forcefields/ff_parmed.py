@@ -1,4 +1,4 @@
-from torchmd.forcefields.forcefield import ForceField
+from torchmd.forcefields.forcefield import _ForceFieldBase
 from math import radians
 import numpy as np
 
@@ -46,7 +46,7 @@ def loadParmedParameters(fname):
     return prm
 
 
-class ParmedForcefield(ForceField):
+class ParmedForcefield(_ForceFieldBase):
     def __init__(self, mol, prm):
         self.mol = mol
         self.prm = prm
