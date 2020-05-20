@@ -32,13 +32,15 @@ class Wrapper:
 
 def calculateMoleculeGroups(natoms, bonds, device):
     import networkx as nx
+    import numpy as np
 
     # Calculate molecule groups and non-bonded / non-grouped atoms
     if bonds is not None and len(bonds):
         bondGraph = nx.Graph()
         bondGraph.add_nodes_from(range(natoms))
-        bondGraph.add_edges_from(bonds)
+        bondGraph.add_edges_from(bonds.astype(np.int64))
         molgroups = list(nx.connected_components(bondGraph))
+
         nongrouped = torch.tensor(
             [list(group)[0] for group in molgroups if len(group) == 1]
         ).to(device)
