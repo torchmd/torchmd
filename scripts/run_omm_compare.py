@@ -58,7 +58,7 @@ angles = mol.angles.astype(int).copy()
 
 print("Force terms: ", args.forceterms)
 ff = YamlForcefield(mol, args.forcefield)
-parameters = Parameters(ff, mol, ("lj", "bonds", "angles", "electrostatic"))
+parameters = Parameters(ff, mol)
 
 # forcefield = Forcefield(args.forcefield, precision=precision)
 # parameters = forcefield.create(atom_types, bonds=bonds, angles=angles)

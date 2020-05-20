@@ -34,7 +34,7 @@ def calculateMoleculeGroups(natoms, bonds, device):
     import networkx as nx
 
     # Calculate molecule groups and non-bonded / non-grouped atoms
-    if bonds is not None:
+    if bonds is not None and len(bonds):
         bondGraph = nx.Graph()
         bondGraph.add_nodes_from(range(natoms))
         bondGraph.add_edges_from(bonds)

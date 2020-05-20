@@ -4,7 +4,7 @@ import numpy as np
 
 
 class Parameters:
-    def __init__(self, ff, mol, terms):
+    def __init__(self, ff, mol, terms=("bonds", "angles", "dihedrals", "impropers")):
         self.A = None
         self.B = None
         self.bonds = None
@@ -20,6 +20,7 @@ class Parameters:
         self.impropers = None
         self.improper_params = None
 
+        terms = [term.lower() for term in terms]
         self.build_parameters(ff, mol, terms)
 
     def to_(self, device):
@@ -65,6 +66,7 @@ class Parameters:
             # These exclusions will be covered by nonbonded_14_params
             npdihedrals = self.dihedrals.cpu().numpy()
             excludepairs += npdihedrals[:, [0, 3]].tolist()
+        return excludepairs
 
     def build_parameters(self, ff, mol, terms):
         uqatomtypes, indexes = np.unique(mol.atomtype, return_inverse=True)
@@ -73,17 +75,17 @@ class Parameters:
         self.charges = self.make_charges(ff, mol.atomtype)
         self.masses = self.make_masses(ff, mol.atomtype)
         self.A, self.B = self.make_lj(ff, uqatomtypes)
-        if "bonds" in terms:
+        if "bonds" in terms and len(mol.bonds):
             uqbonds = np.unique([sorted(bb) for bb in mol.bonds], axis=0)
             self.bonds = torch.tensor(uqbonds.astype(np.int64))
             self.bond_params = self.make_bonds(ff, uqatomtypes[indexes[uqbonds]])
-        if "angles" in terms:
+        if "angles" in terms and len(mol.angles):
             uqangles = np.unique(
                 [ang if ang[0] < ang[2] else ang[::-1] for ang in mol.angles], axis=0
             )
             self.angles = torch.tensor(uqangles.astype(np.int64))
             self.angle_params = self.make_angles(ff, uqatomtypes[indexes[uqangles]])
-        if "dihedrals" in terms:
+        if "dihedrals" in terms and len(mol.dihedrals):
             uqdihedrals = np.unique(
                 [dih if dih[0] < dih[3] else dih[::-1] for dih in mol.dihedrals], axis=0
             )
@@ -94,7 +96,7 @@ class Parameters:
             self.nonbonded_14_params = self.make_14(
                 ff, uqatomtypes[indexes[uqdihedrals]]
             )
-        if "impropers" in terms:
+        if "impropers" in terms and len(mol.impropers):
             uqimpropers = self._unique_impropers(mol.impropers, mol.bonds)
             self.impropers = torch.tensor(uqimpropers.astype(np.int64))
             self.improper_params = self.make_impropers(

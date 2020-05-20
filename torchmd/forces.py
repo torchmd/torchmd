@@ -19,22 +19,22 @@ class Forces:
         solventDielectric : float
             Used together with `cutoff` and `rfa`
     """
-    bonded = ["Bonds", "Angles"]
-    nonbonded = ["Electrostatics", "LJ", "Repulsion", "RepulsionCG"]
+    bonded = ["bonds", "angles"]
+    nonbonded = ["electrostatics", "lj", "repulsion", "repulsioncg"]
     terms = bonded + nonbonded
 
-    def __init__(self, parameters, energies, device, external=None, exclude=("Bonds", "Angles"), cutoff=None, rfa=False, solventDielectric=78.5, precision=torch.float):
+    def __init__(self, parameters, energies, device, external=None, cutoff=None, rfa=False, solventDielectric=78.5, precision=torch.float):
         self.par = parameters
         self.par.to_(device) #TODO: I should really copy to gpu not update
         self.device = device
-        self.energies = energies
+        self.energies = [ene.lower() for ene in energies]
         for et in energies:
             if et not in self.terms:
                 raise ValueError(f"Force term {et} is not implemented.")
 
         self.natoms = len(parameters.masses)
         self.require_distances = any(f in self.nonbonded for f in self.energies)
-        self.ava_idx = self._make_indeces(self.natoms, exclude) if self.require_distances else None
+        self.ava_idx = self._make_indeces(self.natoms, parameters.get_exclusions()) if self.require_distances else None
         self.external = external
         self.cutoff = cutoff
         self.rfa = rfa
@@ -65,7 +65,7 @@ class Forces:
 
             # Bonded terms
             # TODO: We are for sure doing duplicate distance calculations here!
-            if "Bonds" in self.energies:
+            if "bonds" in self.energies:
                 bond_dist, bond_unitvec, _ = calculateDistances(spos, self.par.bonds, sbox)
                 pairs = self.par.bonds
                 bond_params = self.par.bond_params
@@ -73,16 +73,16 @@ class Forces:
                     bond_dist, bond_unitvec, pairs, bond_params = self._filterByCutoff(bond_dist, (bond_dist, bond_unitvec, pairs, bond_params))
                 E, force_coeff = evaluateBonds(bond_dist, bond_params)
 
-                pot[i]["Bonds"] += E.cpu().sum().item()
+                pot[i]["bonds"] += E.cpu().sum().item()
                 forces[i].index_add_(0, pairs[:, 0], -bond_unitvec * force_coeff[:, None])
                 forces[i].index_add_(0, pairs[:, 1], bond_unitvec * force_coeff[:, None])
 
-            if "Angles" in self.energies:
+            if "angles" in self.energies:
                 _, _, r21 = calculateDistances(spos, self.par.angles[:, [0, 1]], sbox)
                 _, _, r23 = calculateDistances(spos, self.par.angles[:, [2, 1]], sbox)
                 E, angle_forces = evaluateAngles(r21, r23, self.par.angle_params)
 
-                pot[i]["Angles"] += E.cpu().sum().item()
+                pot[i]["angles"] += E.cpu().sum().item()
                 forces[i].index_add_(0, self.par.angles[:, 0], angle_forces[0])
                 forces[i].index_add_(0, self.par.angles[:, 1], angle_forces[1])
                 forces[i].index_add_(0, self.par.angles[:, 2], angle_forces[2])
@@ -97,16 +97,16 @@ class Forces:
                     nb_dist, nb_unitvec, ava_idx = self._filterByCutoff(nb_dist, (nb_dist, nb_unitvec, ava_idx))
         
                 for v in self.energies:
-                    if v=="Electrostatics":
+                    if v=="electrostatics":
                         E, force_coeff = evaluateElectrostatics(nb_dist, ava_idx, self.par.charges, cutoff=self.cutoff, rfa=self.rfa, solventDielectric=self.solventDielectric)
                         pot[i][v] += E.cpu().sum().item()
-                    elif v=="LJ":
+                    elif v=="lj":
                         E, force_coeff = evaluateLJ(nb_dist, ava_idx, self.par.mapped_atom_types, self.par.A, self.par.B)
                         pot[i][v] += E.cpu().sum().item()
-                    elif v=="Repulsion":
+                    elif v=="repulsion":
                         E, force_coeff = evaluateRepulsion(nb_dist, ava_idx, self.par.mapped_atom_types, self.par.A)
                         pot[i][v] += E.cpu().sum().item()
-                    elif v=="RepulsionCG":
+                    elif v=="repulsioncg":
                         E, force_coeff = evaluateRepulsionCG(nb_dist, ava_idx, self.par.mapped_atom_types, self.par.B)
                         pot[i][v] += E.cpu().sum().item()
                     else:
@@ -126,16 +126,7 @@ class Forces:
         else:
             return [np.sum([v for _, v in pp.items()]) for pp in pot]
 
-    def _make_indeces(self,natoms, exclude):
-        excludepairs = []
-        if "Bonds" in exclude and self.par.bonds is not None:
-            excludepairs += self.par.bonds.cpu().numpy().tolist()
-        if "Angles" in exclude and self.par.angles is not None:
-            npangles = self.par.angles.cpu().numpy()
-            excludepairs += npangles[:, [0, 1]].tolist()
-            excludepairs += npangles[:, [1, 2]].tolist()
-            excludepairs += npangles[:, [0, 2]].tolist()
-
+    def _make_indeces(self, natoms, excludepairs):
         allvsall_indeces = []
         for i in range(natoms):
             for j in range(i + 1, natoms):

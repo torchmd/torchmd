@@ -2,7 +2,8 @@ import os
 import torch
 from torchmd.systems import Systems, System
 from moleculekit.molecule import Molecule
-from torchmd.forcefield import Forcefield
+from torchmd.forcefields.ff_yaml import YamlForcefield
+from torchmd.parameters import Parameters
 from torchmd.forces import Forces
 from torchmd.integrator import Integrator
 from torchmd.wrapper import Wrapper
@@ -73,8 +74,6 @@ def torchmd(args):
 
     precision = precisionmap[args.precision]
 
-    atom_types = mol.atomtype if mol.atomtype[0] else mol.name  #TODO: Fix this crap
-    print(atom_types)
     atom_pos = torch.tensor(mol.coords).permute(2, 0, 1).type(precision)
 
     box = np.swapaxes(mol.box, 1, 0).astype(np.float64)
@@ -86,27 +85,14 @@ def torchmd(args):
     for r in range(box.shape[0]):
         box_full[r][torch.eye(3).bool()] = torch.tensor(box[r]).type(precision)
 
-    natoms = len(atom_types)
-    
-    exclude = []
-    if 'Bonds' in args.forceterms:
-        bonds = mol.bonds.astype(int).copy()
-        exclude.append('Bonds')
-    else:
-        bonds = None
-
-    if 'Angles' in args.forceterms:
-        angles = mol.angles.astype(int).copy()
-        exclude.append('Angles')
-    else:
-        angles = None
-
+    args.forceterms = [term.lower() for term in args.forceterms]
     print("Force terms: ",args.forceterms)
-    forcefield = Forcefield(args.forcefield, precision=precision)
-    parameters = forcefield.create(atom_types,bonds=bonds,angles=angles)
+    ff = YamlForcefield(mol, args.forcefield)
+    parameters = Parameters(ff, mol, args.forceterms)
+    parameters.precision_(precision)
 
     atom_vel = maxwell_boltzmann(parameters.masses, args.temperature, args.replicas)
-    atom_forces = torch.zeros(args.replicas, natoms, 3).to(device).type(precision)
+    atom_forces = torch.zeros(args.replicas, mol.numAtoms, 3).to(device).type(precision)
 
     external = None
     if args.external is not None:
@@ -116,9 +102,9 @@ def torchmd(args):
 
     system = Systems(atom_pos, atom_vel, box_full, atom_forces, device)
     forces = Forces(parameters, args.forceterms, device, external=external, cutoff=args.cutoff, 
-                                rfa=args.rfa, precision=precision, exclude=tuple(exclude))
+                                rfa=args.rfa, precision=precision)
     integrator = Integrator(system, forces, args.timestep, device, gamma=args.langevin_gamma, T=args.langevin_temperature)
-    wrapper = Wrapper(natoms, bonds, device)
+    wrapper = Wrapper(mol.numAtoms, mol.bonds if "bonds" in args.forceterms else None, device)
 
     outputname, outputext = os.path.splitext(args.output)
     trajs = []
