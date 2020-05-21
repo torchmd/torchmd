@@ -56,3 +56,7 @@ class ForceField:
                 return ParmedForcefield(mol, prm)
             elif ext in yamlext:
                 return YamlForcefield(mol, prm)
+            else:  # Fallback on parmed
+                return ParmedForcefield(mol, prm)
+        else:  # Fallback on parmed
+            return ParmedForcefield(mol, prm)

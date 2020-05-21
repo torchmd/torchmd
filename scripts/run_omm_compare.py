@@ -2,7 +2,7 @@ import os
 import torch
 from torchmd.systems import Systems, System
 from moleculekit.molecule import Molecule
-from torchmd.forcefields.ff_yaml import YamlForcefield
+from torchmd.forcefields.forcefield import Forcefield
 from torchmd.parameters import Parameters
 from torchmd.forces import Forces
 from torchmd.integrator import Integrator
@@ -19,12 +19,12 @@ import parmed
 from ffevaluation.test_ffevaluate import openmm_energy, keepForces
 from ffevaluation.ffevaluate import FFEvaluate
 
-FS2NS = 1.0 / 1000000.0
 
-precisionmap = {"single": torch.float, "double": torch.double}
 args = Namespace(
     **yaml.load(open("./tests/water/water_conf.yaml", "r"), Loader=yaml.FullLoader)
 )
+precisionmap = {"single": torch.float, "double": torch.double}
+precision = precisionmap[args.precision]
 replicas = 1
 torch.manual_seed(args.seed)
 torch.cuda.manual_seed_all(args.seed)
@@ -39,8 +39,6 @@ mol.box[:] = np.array(
 
 if args.coordinates is not None:
     mol.read(args.coordinates)
-
-precision = precisionmap[args.precision]
 
 atom_types = mol.atomtype if mol.atomtype[0] else mol.name  # TODO: Fix this crap
 print(atom_types)
@@ -57,7 +55,7 @@ bonds = mol.bonds.astype(int).copy()
 angles = mol.angles.astype(int).copy()
 
 print("Force terms: ", args.forceterms)
-ff = YamlForcefield(mol, args.forcefield)
+ff = Forcefield.create(mol, args.forcefield)
 parameters = Parameters(ff, mol)
 
 # forcefield = Forcefield(args.forcefield, precision=precision)
@@ -65,9 +63,6 @@ parameters = Parameters(ff, mol)
 
 atom_vel = maxwell_boltzmann(parameters.masses, args.temperature, replicas)
 atom_forces = torch.zeros(replicas, natoms, 3).to(device).type(precision)
-
-mol.charge[mol.atomtype == "HT"] = 0.417000
-mol.charge[mol.atomtype == "OT"] = -0.834000
 
 forceterms = ["LJ", "Bonds", "Angles", "Electrostatics"]
 ommforceterms = ["lennardjones", "bond", "angle", "electrostatic"]

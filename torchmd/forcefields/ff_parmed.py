@@ -78,10 +78,16 @@ class ParmedForcefield(_ForceFieldBase):
 
     def getDihedral(self, at1, at2, at3, at4):
         variants = [(at1, at2, at3, at4), (at4, at3, at2, at1)]
+        params = None
         for var in variants:
             if var in self.prm.dihedral_types:
                 params = self.prm.dihedral_types[var]
                 break
+
+        if params is None:
+            raise RuntimeError(
+                f"Could not find dihedral parameters for ({at1}, {at2}, {at3}, {at4})"
+            )
 
         terms = []
         for term in params:
@@ -115,9 +121,9 @@ class ParmedForcefield(_ForceFieldBase):
         for p in perms:
             if tuple(types[p]) in self.prm.improper_types:
                 params = self.prm.improper_types[tuple(types[p])]
-                return params.phi_k, radians(params.phase), params.per
+                return params.psi_k, radians(params.psi_eq), 0
             elif tuple(types[p]) in self.prm.improper_periodic_types:
                 params = self.prm.improper_periodic_types[tuple(types[p])]
-                return params.psi_k, radians(params.psi_eq), 0
+                return params.phi_k, radians(params.phase), params.per
 
         raise RuntimeError(f"Could not find improper parameters for key {types}")
