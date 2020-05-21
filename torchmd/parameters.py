@@ -22,10 +22,12 @@ class Parameters:
         self.angle_params = None
         self.dihedrals = None
         self.dihedral_params = None
+        self.idx14 = None
         self.nonbonded_14_params = None
         self.impropers = None
         self.improper_params = None
 
+        self.natoms = mol.numAtoms
         terms = [term.lower() for term in terms]
         self.build_parameters(ff, mol, terms)
         self.precision_(precision)
@@ -43,43 +45,60 @@ class Parameters:
             self.angle_params = self.angle_params.to(device)
         if self.dihedrals is not None:
             self.dihedrals = self.dihedrals.to(device)
-            self.dihedral_params = self.dihedral_params.to(device)
+            for j in range(len(self.dihedral_params)):
+                termparams = self.dihedral_params[j]
+                termparams["idx"] = termparams["idx"].to(device)
+                termparams["params"] = termparams["params"].to(device)
+            self.idx14 = self.idx14.to(device)
             self.nonbonded_14_params = self.nonbonded_14_params.to(device)
         if self.impropers is not None:
             self.impropers = self.impropers.to(device)
-            self.improper_params = self.improper_params.to(device)
+            termparams = self.improper_params[0]
+            termparams["idx"] = termparams["idx"].to(device)
+            termparams["params"] = termparams["params"].to(device)
 
     def precision_(self, precision):
         self.A = self.A.type(precision)
         self.B = self.B.type(precision)
+        self.charges = self.charges.type(precision)
         if self.bonds is not None:
             self.bond_params = self.bond_params.type(precision)
         if self.angles is not None:
             self.angle_params = self.angle_params.type(precision)
         if self.dihedrals is not None:
-            self.dihedral_params = self.dihedral_params.type(precision)
             self.nonbonded_14_params = self.nonbonded_14_params.type(precision)
+            for j in range(len(self.dihedral_params)):
+                termparams = self.dihedral_params[j]
+                termparams["params"] = termparams["params"].type(precision)
         if self.impropers is not None:
-            self.improper_params = self.improper_params.type(precision)
+            termparams = self.improper_params[0]
+            termparams["params"] = termparams["params"].type(precision)
 
-    def get_exclusions(self):
-        excludepairs = []
-        if self.bonds is not None:
-            excludepairs += self.bonds.cpu().numpy().tolist()
-        if self.angles is not None:
+    def get_exclusions(self, types=("bonds", "angles", "dihedrals"), fullarray=False):
+        exclusions = []
+        if self.bonds is not None and "bonds" in types:
+            exclusions += self.bonds.cpu().numpy().tolist()
+        if self.angles is not None and "angles" in types:
             npangles = self.angles.cpu().numpy()
-            excludepairs += npangles[:, [0, 2]].tolist()
-        if self.dihedrals is not None:
+            exclusions += npangles[:, [0, 2]].tolist()
+        if self.dihedrals is not None and "dihedrals" in types:
             # These exclusions will be covered by nonbonded_14_params
             npdihedrals = self.dihedrals.cpu().numpy()
-            excludepairs += npdihedrals[:, [0, 3]].tolist()
-        return excludepairs
+            exclusions += npdihedrals[:, [0, 3]].tolist()
+        if fullarray:
+            fullmat = np.full((self.natoms, self.natoms), False, dtype=bool)
+            if len(exclusions):
+                exclusions = np.array(exclusions)
+                fullmat[exclusions[:, 0], exclusions[:, 1]] = True
+                fullmat[exclusions[:, 1], exclusions[:, 0]] = True
+                exclusions = fullmat
+        return exclusions
 
     def build_parameters(self, ff, mol, terms):
         uqatomtypes, indexes = np.unique(mol.atomtype, return_inverse=True)
 
         self.mapped_atom_types = torch.tensor(indexes)
-        self.charges = self.make_charges(ff, mol.atomtype)
+        self.charges = torch.tensor(mol.charge.astype(np.float64))
         self.masses = self.make_masses(ff, mol.atomtype)
         self.A, self.B = self.make_lj(ff, uqatomtypes)
         if "bonds" in terms and len(mol.bonds):
@@ -100,18 +119,26 @@ class Parameters:
             self.dihedral_params = self.make_dihedrals(
                 ff, uqatomtypes[indexes[uqdihedrals]]
             )
-            self.nonbonded_14_params = self.make_14(
-                ff, uqatomtypes[indexes[uqdihedrals]]
-            )
+            # Keep only dihedrals whos 1/4 atoms are not in bond+angle exclusions
+            exclusions = self.get_exclusions(types=("bonds", "angles"), fullarray=True)
+            keep = ~exclusions[uqdihedrals[:, 0], uqdihedrals[:, 3]]
+            dih14 = uqdihedrals[keep, :]
+            if len(dih14):
+                # Remove duplicates (can occur if 1,4 atoms were same and 2,3 differed)
+                uq14idx = np.unique(dih14[:, [0, 3]], axis=0, return_index=True)[1]
+                dih14 = dih14[uq14idx]
+                self.idx14 = torch.tensor(dih14[:, [0, 3]].astype(np.int64))
+                self.nonbonded_14_params = self.make_14(ff, uqatomtypes[indexes[dih14]])
         if "impropers" in terms and len(mol.impropers):
-            uqimpropers = self._unique_impropers(mol.impropers, mol.bonds)
+            uqimpropers = np.unique(mol.impropers, axis=0)
+            # uqimpropers = self._unique_impropers(mol.impropers, mol.bonds)
             self.impropers = torch.tensor(uqimpropers.astype(np.int64))
             self.improper_params = self.make_impropers(
-                ff, uqatomtypes[indexes[uqimpropers]]
+                ff, uqatomtypes, indexes, uqimpropers, uqbonds
             )
 
-    def make_charges(self, ff, atomtypes):
-        return torch.tensor([ff.getCharge(at) for at in atomtypes])
+    # def make_charges(self, ff, atomtypes):
+    #     return torch.tensor([ff.getCharge(at) for at in atomtypes])
 
     def make_masses(self, ff, atomtypes):
         masses = torch.tensor([ff.getMass(at) for at in atomtypes])
@@ -141,23 +168,50 @@ class Parameters:
         return torch.tensor([ff.getAngle(*at) for at in uqangleatomtypes])
 
     def make_dihedrals(self, ff, uqdihedralatomtypes):
-        return torch.tensor([ff.getDihedral(*at) for at in uqdihedralatomtypes])
+        from collections import defaultdict
 
-    def _unique_impropers(self, impropers, bonds):
-        graph = improperGraph(impropers, bonds)
-        newimpropers = []
-        for improper in impropers:
-            center = detectImproperCenter(improper, graph)
-            notcenter = sorted(np.setdiff1d(improper, center))
-            newimpropers.append([notcenter[0], notcenter[1], center, notcenter[2]])
-        return np.unique(newimpropers, axis=0)
+        dihedrals = defaultdict(lambda: {"idx": [], "params": []})
 
-    def make_impropers(self, ff, uqimproperatomtypes):
-        return torch.tensor([ff.getImproper(*at) for at in uqimproperatomtypes])
+        for i, at in enumerate(uqdihedralatomtypes):
+            terms = ff.getDihedral(*at)
+            for j, term in enumerate(terms):
+                dihedrals[j]["idx"].append(i)
+                dihedrals[j]["params"].append(term)
 
-    def make_14(self, ff, uqdihedralatomtypes):
+        maxterms = max(dihedrals.keys()) + 1
+        newdihedrals = []
+        for j in range(maxterms):
+            dihedrals[j]["idx"] = torch.tensor(dihedrals[j]["idx"])
+            dihedrals[j]["params"] = torch.tensor(dihedrals[j]["params"])
+            newdihedrals.append(dihedrals[j])
+
+        return newdihedrals
+
+    def make_impropers(self, ff, uqatomtypes, indexes, uqimpropers, bonds):
+        impropers = {"idx": [], "params": []}
+        graph = improperGraph(uqimpropers, bonds)
+
+        for i, impr in enumerate(uqimpropers):
+            at = uqatomtypes[indexes[impr]]
+            try:
+                params = ff.getImproper(*at)
+            except:
+                center = detectImproperCenter(impr, graph)
+                notcenter = sorted(np.setdiff1d(impr, center))
+                order = [notcenter[0], notcenter[1], center, notcenter[2]]
+                at = uqatomtypes[indexes[order]]
+                params = ff.getImproper(*at)
+
+            impropers["idx"].append(i)
+            impropers["params"].append(params)
+
+        impropers["idx"] = torch.tensor(impropers["idx"])
+        impropers["params"] = torch.tensor(impropers["params"])
+        return [impropers]
+
+    def make_14(self, ff, uq14atomtypes):
         nonbonded_14_params = []
-        for uqdih in uqdihedralatomtypes:
+        for uqdih in uq14atomtypes:
             scnb, scee, lj1_s14, lj1_e14, lj4_s14, lj4_e14 = ff.get14(*uqdih)
             # Lorentz - Berthelot combination rule
             sig = 0.5 * (lj1_s14 + lj4_s14)
