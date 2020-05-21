@@ -1,0 +1,24 @@
+* Topology for water and ions
+*
+31  1
+
+MASS  6   SOD  22.98977 NA ! Sodium Ion
+MASS  15  CLA  35.45000 CL ! Chloride Ion
+
+default first none last none
+
+! Ion parameters from Benoit Roux and Coworkers
+! As of 8/10 new NBFIX terms required
+!
+
+RESI SOD       1.00 ! Sodium Ion
+GROUP
+ATOM SOD  SOD  1.00
+PATCHING FIRST NONE LAST NONE
+
+RESI CLA      -1.00 ! Chloride Ion
+GROUP
+ATOM CLA  CLA -1.00
+PATCHING FIRST NONE LAST NONE
+
+END

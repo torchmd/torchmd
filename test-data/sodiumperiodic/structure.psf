@@ -1,0 +1,41 @@
+PSF
+
+       8 !NTITLE
+ REMARKS original generated structure x-plor psf file
+ REMARKS topology topologies/0.top_all36_prot.rtf 
+ REMARKS topology topologies/1.top_all36_lipid.rtf 
+ REMARKS topology topologies/2.top_water_ions.rtf 
+ REMARKS topology topologies/3.top_all36_cgenff.rtf 
+ REMARKS topology topologies/4.top_all36_prot_arg0.rtf 
+ REMARKS topology topologies/5.top_ions_won.rtf 
+ REMARKS segment WT0 { first NONE; last NONE; auto angles dihedrals }
+
+       2 !NATOM
+       1 WT0  1433 SOD  SOD  SOD    1.000000       22.9898           0
+       2 WT0  2357 SOD  SOD  SOD    1.000000       22.9898           0
+
+       0 !NBOND: bonds
+
+
+       0 !NTHETA: angles
+
+
+       0 !NPHI: dihedrals
+
+
+       0 !NIMPHI: impropers
+
+
+       0 !NDON: donors
+
+
+       0 !NACC: acceptors
+
+
+       0 !NNB
+
+       0       0
+
+       1       0 !NGRP
+       0       0       0
+

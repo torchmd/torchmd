@@ -1,0 +1,17 @@
+* prm file built by HTMD parameterize version unpackaged
+*
+
+BONDS
+C261   C261     305.00   1.3750
+
+ANGLES
+C261   C261   C261      40.00   120.00
+
+DIHEDRALS
+C261   C261   C261   C261     3.10000000 2 180.00000000
+
+IMPROPER
+
+NONBONDED nbxmod  5 atom cdiel shift vatom vdistance vswitch -
+cutnb 14.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5
+C261   0.0000  -0.0700   1.9924

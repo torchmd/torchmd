@@ -1,0 +1,48 @@
+* Parameters for water and ions
+*
+
+ATOMS
+MASS  1   HT    1.00800 ! TIPS3P WATER HYDROGEN
+MASS  3   OT   15.99940 ! TIPS3P WATER OXYGEN
+
+BONDS
+!
+!V(bond) = Kb(b - b0)**2
+!
+!Kb: kcal/mole/A**2
+!b0: A
+!
+!atom type Kb          b0
+!
+HT    HT      0.0       1.5139  ! from TIPS3P geometry (for SHAKE w/PARAM)
+HT    OT    450.0       0.9572  ! from TIPS3P geometry
+
+ANGLES
+!
+!V(angle) = Ktheta(Theta - Theta0)**2
+!
+!V(Urey-Bradley) = Kub(S - S0)**2
+!
+!Ktheta: kcal/mole/rad**2
+!Theta0: degrees
+!Kub: kcal/mole/A**2 (Urey-Bradley)
+!S0: A
+!
+!atom types     Ktheta    Theta0   Kub     S0
+!
+HT   OT   HT     55.0      104.52   ! FROM TIPS3P GEOMETRY
+
+DIHEDRALS
+
+
+IMPROPER
+
+
+NONBONDED nbxmod  5 atom cdiel fshift vatom vdistance vfswitch -
+cutnb 14.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5
+
+!TIP3P LJ parameters
+HT       0.0       -0.046     0.2245
+OT       0.0       -0.1521    1.7682
+END
+

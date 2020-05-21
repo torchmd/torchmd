@@ -1,0 +1,39 @@
+MODEL        1
+HETATM    1  C1  MOL     1       0.000   0.000  -0.170  0.00  0.00      L    C  
+HETATM    2  C2  MOL     1       0.007   1.210   0.523  0.00  0.00      L    C  
+HETATM    3  C3  MOL     1       0.000   1.205   1.904  0.00  0.00      L    C  
+HETATM    4  C4  MOL     1       0.000   0.000   2.592  0.00  0.00      L    C  
+HETATM    5  C5  MOL     1       0.000  -1.205   1.904  0.00  0.00      L    C  
+HETATM    6  C6  MOL     1      -0.007  -1.210   0.523  0.00  0.00      L    C  
+HETATM    7  C7  MOL     1       0.000   0.000  -1.643  0.00  0.00      L    C  
+HETATM    8  H1  MOL     1      -0.019   2.146  -0.006  0.00  0.00      L    H  
+HETATM    9  H2  MOL     1      -0.011   2.134   2.442  0.00  0.00      L    H  
+HETATM   10  H3  MOL     1       0.000   0.000   3.666  0.00  0.00      L    H  
+HETATM   11  H4  MOL     1       0.011  -2.134   2.442  0.00  0.00      L    H  
+HETATM   12  H5  MOL     1       0.019  -2.146  -0.006  0.00  0.00      L    H  
+HETATM   13  N1  MOL     1      -0.741  -0.864  -2.296  0.00  0.00      L    N  
+HETATM   14  N2  MOL     1       0.741   0.864  -2.296  0.00  0.00      L    N  
+HETATM   15  H6  MOL     1       0.721   0.947  -3.291  0.00  0.00      L    H  
+HETATM   16  H7  MOL     1       1.404   1.427  -1.808  0.00  0.00      L    H  
+HETATM   17  H8  MOL     1      -1.404  -1.427  -1.808  0.00  0.00      L    H  
+HETATM   18  H9  MOL     1      -0.721  -0.947  -3.291  0.00  0.00      L    H  
+CONECT    1    2    6    7
+CONECT    2    1    3    8
+CONECT    3    2    4    9
+CONECT    4    3    5   10
+CONECT    5    4    6   11
+CONECT    6    1    5   12
+CONECT    7    1   13   14
+CONECT    8    2
+CONECT    9    3
+CONECT   10    4
+CONECT   11    5
+CONECT   12    6
+CONECT   13    7   17   18
+CONECT   14    7   15   16
+CONECT   15   14
+CONECT   16   14
+CONECT   17   13
+CONECT   18   13
+ENDMDL
+END

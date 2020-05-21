@@ -1,0 +1,32 @@
+PSF
+
+       0 !NTITLE
+
+      4 !NATOM
+       1 L    1    MOL  C1   C261      -0.0558481       0.0           0
+       2 L    1    MOL  C2   C261      -0.0998957       0.0           0
+       3 L    1    MOL  C3   C261      -0.0494477       0.0           0
+       4 L    1    MOL  C4   C261      -0.0551482       0.0           0
+
+
+       3 !NBOND: bonds
+         1         2         2         3         3         4
+
+
+        2 !NTHETA: angles
+         1         2         3         2         3         4
+
+
+        1 !NPHI: dihedrals
+         1         2         3         4
+
+
+         0 !NDON: donors
+
+         0 !NACC: acceptors
+
+         0 !NNB
+
+
+         0          0 !NGRP
+

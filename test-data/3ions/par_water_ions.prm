@@ -1,0 +1,28 @@
+ATOMS
+MASS  6   SOD  22.98977 ! Sodium Ion
+MASS  15  CLA  35.45000 ! Chloride Ion
+
+BONDS
+
+ANGLES
+
+DIHEDRALS
+
+
+IMPROPER
+
+
+NONBONDED nbxmod  5 atom cdiel fshift vatom vdistance vfswitch -
+cutnb 14.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5
+
+!ions
+SOD      0.0       -0.0469    1.41075  ! new CHARMM Sodium 
+                   ! ddG of -18.6 kcal/mol with K+ from S. Noskov
+CLA      0.0       -0.150      2.27     ! Chloride
+                   ! D. Beglovd and B. Roux, dA=-83.87+4.46 = -79.40 kcal/mol
+
+NBFIX
+!              Emin         Rmin
+!            (kcal/mol)     (A)
+SOD    CLA      -0.083875   3.731 !  From osmotic pressure calibration, J. Phys.Chem.Lett. 1:183-189
+END

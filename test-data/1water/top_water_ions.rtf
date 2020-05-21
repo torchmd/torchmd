@@ -1,0 +1,22 @@
+* Topology for water and ions
+*
+31  1
+
+MASS  1   HT    1.00800 H  ! TIPS3P WATER HYDROGEN
+MASS  3   OT   15.99940 O  ! TIPS3P WATER OXYGEN
+
+default first none last none
+
+RESI TIP3         0.000 ! tip3p water model, generate using noangle nodihedral
+GROUP
+ATOM OH2  OT     -0.834
+ATOM H1   HT      0.417
+ATOM H2   HT      0.417
+BOND OH2 H1 OH2 H2 H1 H2    ! the last bond is needed for shake
+ANGLE H1 OH2 H2             ! required
+DONOR H1 OH2
+DONOR H2 OH2
+ACCEPTOR OH2
+PATCHING FIRS NONE LAST NONE
+
+END

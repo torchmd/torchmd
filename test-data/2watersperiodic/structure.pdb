@@ -1,0 +1,8 @@
+REMARK original generated coordinate pdb file
+ATOM      1  OH2 TIP3 1433      20.020 -11.410  37.750  1.00  0.00      WT0  O
+ATOM      2  H1  TIP3 1433      20.660 -10.800  37.400  1.00  0.00      WT0  H
+ATOM      3  H2  TIP3 1433      19.570 -11.770  36.980  1.00  0.00      WT0  H
+ATOM      4  OH2 TIP3 2357       4.921 -11.825  32.970  1.00  0.00      WT0  O
+ATOM      5  H1  TIP3 2357       4.971 -10.895  33.200  1.00  0.00      WT0  H
+ATOM      6  H2  TIP3 2357       5.751 -12.015  32.540  1.00  0.00      WT0  H
+END

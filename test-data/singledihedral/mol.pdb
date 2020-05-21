@@ -1,0 +1,11 @@
+MODEL        1
+HETATM    1  C1  MOL     1       0.000   0.000  -0.170  0.00  0.00      L    C  
+HETATM    2  C2  MOL     1       0.007   1.210   0.523  0.00  0.00      L    C  
+HETATM    3  C3  MOL     1       0.000   1.205   1.904  0.00  0.00      L    C  
+HETATM    4  C4  MOL     1       0.000   0.000   2.592  0.00  0.00      L    C
+CONECT    1    2
+CONECT    2    1
+CONECT    3    2
+CONECT    4    3
+ENDMDL
+END
