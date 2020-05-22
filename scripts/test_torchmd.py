@@ -26,7 +26,7 @@ def disableDispersionCorrection(system):
             f.setUseDispersionCorrection(False)
 
 
-def openmm_energy(prm, structure, coords, box=None, cutoff=None):
+def openmm_energy(prm, structure, coords, box=None, cutoff=None, switch_dist=None):
     import parmed
     from simtk import unit
     from simtk import openmm
@@ -49,15 +49,19 @@ def openmm_energy(prm, structure, coords, box=None, cutoff=None):
         if isinstance(structure, AmberParm):
             system = structure.createSystem(
                 nonbondedMethod=app.CutoffPeriodic,
-                nonbondedCutoff=cutoff * unit.angstrom,
-                switchDistance=0,
+                nonbondedCutoff=0 if cutoff is None else cutoff * unit.angstrom,
+                switchDistance=0
+                if switch_dist is None
+                else switch_dist * unit.angstrom,
             )
         else:
             system = structure.createSystem(
                 prm,
                 nonbondedMethod=app.CutoffPeriodic,
-                nonbondedCutoff=cutoff * unit.angstrom,
-                switchDistance=0,
+                nonbondedCutoff=0 if cutoff is None else cutoff * unit.angstrom,
+                switchDistance=0
+                if switch_dist is None
+                else switch_dist * unit.angstrom,
             )
         system.setDefaultPeriodicBoxVectors(a, b, c)
     else:
@@ -337,9 +341,10 @@ class _TestTorchMD(unittest.TestCase):
                 coords = mol.coords
                 coords = coords[:, :, 0].squeeze()
                 rfa = False
-                cutoff = 0
+                cutoff = None
                 if not np.all(mol.box == 0):
                     cutoff = np.min(mol.box) / 2 - 0.01
+                    switch_dist = 6
                     rfa = True
                 precision = torch.double
                 device = "cpu"
@@ -381,7 +386,8 @@ class _TestTorchMD(unittest.TestCase):
                             "impropers",
                         ],
                         device,
-                        cutoff=cutoff if cutoff != 0 else None,
+                        cutoff=cutoff,
+                        switch_dist=switch_dist,
                         rfa=rfa,
                         precision=precision,
                     )
@@ -391,7 +397,12 @@ class _TestTorchMD(unittest.TestCase):
                     forces = system.forces.cpu().numpy()[0].squeeze()
 
                     omm_energies, omm_forces = openmm_energy(
-                        prm, struct, coords, box=mol.box, cutoff=cutoff
+                        prm,
+                        struct,
+                        coords,
+                        box=mol.box,
+                        cutoff=cutoff,
+                        switch_dist=switch_dist,
                     )
                     ediff = compareEnergies(
                         energies, omm_energies, abstol=abstol, compare=forceTMD,
@@ -430,7 +441,8 @@ class _TestTorchMD(unittest.TestCase):
                         "impropers",
                     ],
                     device,
-                    cutoff=cutoff if cutoff != 0 else None,
+                    cutoff=cutoff,
+                    switch_dist=switch_dist,
                     rfa=rfa,
                     precision=precision,
                 )
@@ -440,7 +452,12 @@ class _TestTorchMD(unittest.TestCase):
                 forces = system.forces.cpu().numpy()[0].squeeze()
 
                 omm_energies, omm_forces = openmm_energy(
-                    prm, struct, coords, box=mol.box, cutoff=cutoff
+                    prm,
+                    struct,
+                    coords,
+                    box=mol.box,
+                    cutoff=cutoff,
+                    switch_dist=switch_dist,
                 )
                 ediff = compareEnergies(myenergies, omm_energies, abstol=abstol)
                 print(

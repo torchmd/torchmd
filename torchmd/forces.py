@@ -33,6 +33,7 @@ class Forces:
         cutoff=None,
         rfa=False,
         solventDielectric=78.5,
+        switch_dist=None,
         precision=torch.float,
     ):
         self.par = parameters
@@ -54,6 +55,7 @@ class Forces:
         self.cutoff = cutoff
         self.rfa = rfa
         self.solventDielectric = solventDielectric
+        self.switch_dist = switch_dist
 
     def _filterByCutoff(self, dist, arrays):
         under_cutoff = dist <= self.cutoff
@@ -139,7 +141,9 @@ class Forces:
                 scnb = self.par.nonbonded_14_params[:, 2]
                 scee = self.par.nonbonded_14_params[:, 3]
                 if "lj" in self.energies:
-                    E, force_coeff = evaluateLJ_internal(nb_dist, aa, bb, scnb)
+                    E, force_coeff = evaluateLJ_internal(
+                        nb_dist, aa, bb, scnb, self.switch_dist, self.cutoff
+                    )
                     pot[i]["lj"] += E.cpu().sum().item()
                     forcevec = nb_unitvec * force_coeff[:, None]
                     forces[i].index_add_(0, self.par.idx14[:, 0], -forcevec)
@@ -208,6 +212,8 @@ class Forces:
                             self.par.mapped_atom_types,
                             self.par.A,
                             self.par.B,
+                            self.switch_dist,
+                            self.cutoff,
                         )
                         pot[i][v] += E.cpu().sum().item()
                     elif v == "repulsion":
@@ -271,20 +277,30 @@ ELEC_FACTOR /= const.angstrom  # Convert Angstroms to meters
 ELEC_FACTOR *= const.Avogadro / (const.kilo * const.calorie)  # Convert J to kcal/mol
 
 
-def evaluateLJ(dist, pair_indeces, atom_types, A, B):
+def evaluateLJ(dist, pair_indeces, atom_types, A, B, switch_dist, cutoff):
     atomtype_indices = atom_types[pair_indeces]
     aa = A[atomtype_indices[:, 0], atomtype_indices[:, 1]]
     bb = B[atomtype_indices[:, 0], atomtype_indices[:, 1]]
-    return evaluateLJ_internal(dist, aa, bb, 1)
+    return evaluateLJ_internal(dist, aa, bb, 1, switch_dist, cutoff)
 
 
-def evaluateLJ_internal(dist, aa, bb, scale):
+def evaluateLJ_internal(dist, aa, bb, scale, switch_dist, cutoff):
     rinv1 = 1 / dist
     rinv6 = rinv1 ** 6
     rinv12 = rinv6 * rinv6
 
     pot = ((aa * rinv12) - (bb * rinv6)) / scale
     force = (-12 * aa * rinv12 + 6 * bb * rinv6) * rinv1 / scale
+
+    # Switching function
+    if switch_dist is not None and cutoff is not None:
+        mask = dist > switch_dist
+        t = (dist[mask] - switch_dist) / (cutoff - switch_dist)
+        switch_val = 1 + t * t * t * (-10 + t * (15 - t * 6))
+        switch_deriv = t * t * (-30 + t * (60 - t * 30)) / (cutoff - switch_dist)
+        force[mask] = switch_val * force[mask] + pot[mask] * switch_deriv / dist[mask]
+        pot[mask] = pot[mask] * switch_val
+
     return pot, force
 
 
