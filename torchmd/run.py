@@ -100,7 +100,7 @@ def torchmd(args):
         external = externalmodule.External(args.external["file"], embeddings, device)
 
     system = Systems(atom_pos, atom_vel, box_full, atom_forces, device)
-    forces = Forces(parameters, args.forceterms, device, external=external, cutoff=args.cutoff, 
+    forces = Forces(parameters, device, terms=args.forceterms, external=external, cutoff=args.cutoff, 
                                 rfa=args.rfa, precision=precision)
     integrator = Integrator(system, forces, args.timestep, device, gamma=args.langevin_gamma, T=args.langevin_temperature)
     wrapper = Wrapper(mol.numAtoms, mol.bonds if "bonds" in args.forceterms else None, device)

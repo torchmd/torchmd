@@ -89,8 +89,8 @@ class YamlForcefield(_ForceFieldBase):
         lj1 = self.get_parameters("lj", [at1,])
         lj4 = self.get_parameters("lj", [at4,])
         return (
-            params["scnb"],
-            params["scee"],
+            params["scnb"] if "scnb" in params else 1,
+            params["scee"] if "scee" in params else 1,
             lj1["sigma14"],
             lj1["epsilon14"],
             lj4["sigma14"],

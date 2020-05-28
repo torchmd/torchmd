@@ -20,34 +20,49 @@ class Forces:
             Used together with `cutoff` and `rfa`
     """
 
-    bonded = ["bonds", "angles", "dihedrals", "impropers"]
+    # 1-4 is nonbonded but we put it currently in bonded to not calculate all distances
+    bonded = ["bonds", "angles", "dihedrals", "impropers", "1-4"]
     nonbonded = ["electrostatics", "lj", "repulsion", "repulsioncg"]
     terms = bonded + nonbonded
 
     def __init__(
         self,
         parameters,
-        energies,
         device,
+        terms=(
+            "electrostatics",
+            "lj",
+            "bonds",
+            "angles",
+            "dihedrals",
+            "1-4",
+            "impropers",
+        ),
         external=None,
         cutoff=None,
         rfa=False,
         solventDielectric=78.5,
         switch_dist=None,
+        exclusions=("bonds", "angles", "1-4"),
         precision=torch.float,
     ):
         self.par = parameters
         self.par.to_(device)  # TODO: I should really copy to gpu not update
         self.device = device
-        self.energies = [ene.lower() for ene in energies]
+        self.energies = [ene.lower() for ene in terms]
         for et in self.energies:
             if et not in self.terms:
                 raise ValueError(f"Force term {et} is not implemented.")
 
+        if "1-4" in self.energies and not "dihedrals" in self.energies:
+            raise RuntimeError(
+                "You cannot enable 1-4 interactions without enabling dihedrals"
+            )
+
         self.natoms = len(parameters.masses)
         self.require_distances = any(f in self.nonbonded for f in self.energies)
         self.ava_idx = (
-            self._make_indeces(self.natoms, parameters.get_exclusions())
+            self._make_indeces(self.natoms, parameters.get_exclusions(exclusions))
             if self.require_distances
             else None
         )
@@ -129,7 +144,7 @@ class Forces:
                 forces[i].index_add_(0, self.par.dihedrals[:, 2], dihedral_forces[2])
                 forces[i].index_add_(0, self.par.dihedrals[:, 3], dihedral_forces[3])
 
-                # TODO: 14 lj+ele energy and forces
+            if "1-4" in self.energies and self.par.idx14 is not None:
                 nb_dist, nb_unitvec, _ = calculateDistances(spos, self.par.idx14, sbox)
                 if self.cutoff is not None:
                     nb_dist, nb_unitvec = self._filterByCutoff(

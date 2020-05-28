@@ -377,14 +377,6 @@ class _TestTorchMD(unittest.TestCase):
                     system = getTorchMDSystem(mol, device, precision)
                     forces = Forces(
                         parameters,
-                        [
-                            "electrostatics",
-                            "lj",
-                            "bonds",
-                            "angles",
-                            "dihedrals",
-                            "impropers",
-                        ],
                         device,
                         cutoff=cutoff,
                         switch_dist=switch_dist,
@@ -432,14 +424,6 @@ class _TestTorchMD(unittest.TestCase):
                 system = getTorchMDSystem(mol, device, precision)
                 forces = Forces(
                     parameters,
-                    [
-                        "electrostatics",
-                        "lj",
-                        "bonds",
-                        "angles",
-                        "dihedrals",
-                        "impropers",
-                    ],
                     device,
                     cutoff=cutoff,
                     switch_dist=switch_dist,

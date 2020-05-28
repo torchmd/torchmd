@@ -8,7 +8,7 @@ class Parameters:
         self,
         ff,
         mol,
-        terms=("bonds", "angles", "dihedrals", "impropers"),
+        terms=("bonds", "angles", "dihedrals", "impropers", "1-4"),
         precision=torch.float,
     ):
         self.A = None
@@ -49,6 +49,7 @@ class Parameters:
                 termparams = self.dihedral_params[j]
                 termparams["idx"] = termparams["idx"].to(device)
                 termparams["params"] = termparams["params"].to(device)
+        if self.idx14 is not None:
             self.idx14 = self.idx14.to(device)
             self.nonbonded_14_params = self.nonbonded_14_params.to(device)
         if self.impropers is not None:
@@ -66,22 +67,25 @@ class Parameters:
         if self.angles is not None:
             self.angle_params = self.angle_params.type(precision)
         if self.dihedrals is not None:
-            self.nonbonded_14_params = self.nonbonded_14_params.type(precision)
             for j in range(len(self.dihedral_params)):
                 termparams = self.dihedral_params[j]
                 termparams["params"] = termparams["params"].type(precision)
+        if self.idx14 is not None:
+            self.nonbonded_14_params = self.nonbonded_14_params.type(precision)
         if self.impropers is not None:
             termparams = self.improper_params[0]
             termparams["params"] = termparams["params"].type(precision)
 
-    def get_exclusions(self, types=("bonds", "angles", "dihedrals"), fullarray=False):
+    def get_exclusions(
+        self, types=("bonds", "angles", "1-4"), fullarray=False
+    ):
         exclusions = []
         if self.bonds is not None and "bonds" in types:
             exclusions += self.bonds.cpu().numpy().tolist()
         if self.angles is not None and "angles" in types:
             npangles = self.angles.cpu().numpy()
             exclusions += npangles[:, [0, 2]].tolist()
-        if self.dihedrals is not None and "dihedrals" in types:
+        if self.dihedrals is not None and "1-4" in types:
             # These exclusions will be covered by nonbonded_14_params
             npdihedrals = self.dihedrals.cpu().numpy()
             exclusions += npdihedrals[:, [0, 3]].tolist()
@@ -119,6 +123,7 @@ class Parameters:
             self.dihedral_params = self.make_dihedrals(
                 ff, uqatomtypes[indexes[uqdihedrals]]
             )
+        if "1-4" in terms and len(mol.dihedrals):
             # Keep only dihedrals whos 1/4 atoms are not in bond+angle exclusions
             exclusions = self.get_exclusions(types=("bonds", "angles"), fullarray=True)
             keep = ~exclusions[uqdihedrals[:, 0], uqdihedrals[:, 3]]

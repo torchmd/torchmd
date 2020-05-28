@@ -83,8 +83,8 @@ for forceterm, ommforceterm in zip(forceterms, ommforceterms):
     system = Systems(atom_pos, atom_vel, box_full, atom_forces, device)
     forces = Forces(
         parameters,
-        forceterm,
         device,
+        forceterm,
         external=None,
         cutoff=7.3,
         rfa=True,
