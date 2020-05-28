@@ -75,7 +75,8 @@ def openmm_energy(prm, structure, coords, box=None, cutoff=None, switch_dist=Non
         300 * unit.kelvin, 1 / unit.picoseconds, 2 * unit.femtoseconds
     )
     platform = openmm.Platform.getPlatformByName("CPU")
-    context = openmm.Context(system, integrator, platform)
+    # properties = {'CudaPrecision': 'single'}
+    context = openmm.Context(system, integrator, platform)  # , properties)
 
     # Run OpenMM with given coordinates
     context.setPositions(coords * unit.angstrom)
@@ -265,14 +266,14 @@ def getTorchMDSystem(mol, device, precision):
     from torchmd.systems import Systems
 
     replicas = 1
-    atom_pos = torch.tensor(mol.coords).permute(2, 0, 1).type(precision)
+    atom_pos = torch.tensor(mol.coords).permute(2, 0, 1)
     atom_vel = torch.zeros_like(atom_pos)
-    atom_forces = torch.zeros(replicas, mol.numAtoms, 3).to(device).type(precision)
-    box = np.swapaxes(mol.box, 1, 0).astype(np.float64)
-    box_full = torch.zeros((replicas, 3, 3)).type(precision)
+    atom_forces = torch.zeros(replicas, mol.numAtoms, 3)
+    box = np.swapaxes(mol.box, 1, 0)
+    box_full = torch.zeros((replicas, 3, 3))
     for r in range(box.shape[0]):
-        box_full[r][torch.eye(3).bool()] = torch.tensor(box[r]).type(precision)
-    return Systems(atom_pos, atom_vel, box_full, atom_forces, device)
+        box_full[r][torch.eye(3).bool()] = torch.tensor(box[r])
+    return Systems(atom_pos, atom_vel, box_full, atom_forces, precision, device)
 
 
 import unittest
@@ -372,16 +373,10 @@ class _TestTorchMD(unittest.TestCase):
                         mol.dropFrames(keep=0)
 
                     ff = ForceField.create(mol, prm)
-                    parameters = Parameters(ff, mol, precision=precision)
-                    parameters.to_(device)
+                    parameters = Parameters(ff, mol, precision=precision, device=device)
                     system = getTorchMDSystem(mol, device, precision)
                     forces = Forces(
-                        parameters,
-                        device,
-                        cutoff=cutoff,
-                        switch_dist=switch_dist,
-                        rfa=rfa,
-                        precision=precision,
+                        parameters, cutoff=cutoff, switch_dist=switch_dist, rfa=rfa,
                     )
                     energies = forces.compute(
                         system.pos, system.box, system.forces, returnDetails=True
@@ -419,16 +414,10 @@ class _TestTorchMD(unittest.TestCase):
                     keepForcesAmber(struct, mol)
 
                 ff = ForceField.create(mol, prm)
-                parameters = Parameters(ff, mol, precision=precision)
-                parameters.to_(device)
+                parameters = Parameters(ff, mol, precision=precision, device=device)
                 system = getTorchMDSystem(mol, device, precision)
                 forces = Forces(
-                    parameters,
-                    device,
-                    cutoff=cutoff,
-                    switch_dist=switch_dist,
-                    rfa=rfa,
-                    precision=precision,
+                    parameters, cutoff=cutoff, switch_dist=switch_dist, rfa=rfa,
                 )
                 myenergies = forces.compute(
                     system.pos, system.box, system.forces, returnDetails=True

@@ -28,7 +28,6 @@ class Forces:
     def __init__(
         self,
         parameters,
-        device,
         terms=(
             "electrostatics",
             "lj",
@@ -44,11 +43,8 @@ class Forces:
         solventDielectric=78.5,
         switch_dist=None,
         exclusions=("bonds", "angles", "1-4"),
-        precision=torch.float,
     ):
         self.par = parameters
-        self.par.to_(device)  # TODO: I should really copy to gpu not update
-        self.device = device
         self.energies = [ene.lower() for ene in terms]
         for et in self.energies:
             if et not in self.terms:
@@ -62,7 +58,9 @@ class Forces:
         self.natoms = len(parameters.masses)
         self.require_distances = any(f in self.nonbonded for f in self.energies)
         self.ava_idx = (
-            self._make_indeces(self.natoms, parameters.get_exclusions(exclusions))
+            self._make_indeces(
+                self.natoms, parameters.get_exclusions(exclusions), parameters.device
+            )
             if self.require_distances
             else None
         )
@@ -259,7 +257,7 @@ class Forces:
         else:
             return [np.sum([v for _, v in pp.items()]) for pp in pot]
 
-    def _make_indeces(self, natoms, excludepairs):
+    def _make_indeces(self, natoms, excludepairs, device):
         fullmat = np.full((natoms, natoms), True, dtype=bool)
         if len(excludepairs):
             excludepairs = np.array(excludepairs)
@@ -267,7 +265,7 @@ class Forces:
             fullmat[excludepairs[:, 1], excludepairs[:, 0]] = False
         fullmat = np.triu(fullmat, +1)
         allvsall_indeces = np.vstack(np.where(fullmat)).T
-        ava_idx = torch.tensor(allvsall_indeces).to(self.device)
+        ava_idx = torch.tensor(allvsall_indeces).to(device)
         return ava_idx
 
 

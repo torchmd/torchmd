@@ -80,16 +80,8 @@ for forceterm, ommforceterm in zip(forceterms, ommforceterms):
     mol = mol_org.copy()
     print("Force terms: ", forceterm)
 
-    system = Systems(atom_pos, atom_vel, box_full, atom_forces, device)
-    forces = Forces(
-        parameters,
-        device,
-        forceterm,
-        external=None,
-        cutoff=7.3,
-        rfa=True,
-        precision=precision,
-    )
+    system = Systems(atom_pos, atom_vel, box_full, atom_forces, precision, device)
+    forces = Forces(parameters, forceterm, external=None, cutoff=7.3, rfa=True,)
     Epot = forces.compute(system.pos, system.box, system.forces, returnDetails=True)[0]
     myforces = system.forces.cpu().numpy()[0]
 

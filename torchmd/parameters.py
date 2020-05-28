@@ -10,6 +10,7 @@ class Parameters:
         mol,
         terms=("bonds", "angles", "dihedrals", "impropers", "1-4"),
         precision=torch.float,
+        device="cpu",
     ):
         self.A = None
         self.B = None
@@ -31,6 +32,7 @@ class Parameters:
         terms = [term.lower() for term in terms]
         self.build_parameters(ff, mol, terms)
         self.precision_(precision)
+        self.to_(device)
 
     def to_(self, device):
         self.A = self.A.to(device)
@@ -57,11 +59,13 @@ class Parameters:
             termparams = self.improper_params[0]
             termparams["idx"] = termparams["idx"].to(device)
             termparams["params"] = termparams["params"].to(device)
+        self.device = device
 
     def precision_(self, precision):
         self.A = self.A.type(precision)
         self.B = self.B.type(precision)
         self.charges = self.charges.type(precision)
+        self.masses = self.masses.type(precision)
         if self.bonds is not None:
             self.bond_params = self.bond_params.type(precision)
         if self.angles is not None:
@@ -76,9 +80,7 @@ class Parameters:
             termparams = self.improper_params[0]
             termparams["params"] = termparams["params"].type(precision)
 
-    def get_exclusions(
-        self, types=("bonds", "angles", "1-4"), fullarray=False
-    ):
+    def get_exclusions(self, types=("bonds", "angles", "1-4"), fullarray=False):
         exclusions = []
         if self.bonds is not None and "bonds" in types:
             exclusions += self.bonds.cpu().numpy().tolist()

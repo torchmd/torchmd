@@ -74,24 +74,24 @@ def torchmd(args):
 
     precision = precisionmap[args.precision]
 
-    atom_pos = torch.tensor(mol.coords).permute(2, 0, 1).type(precision)
+    atom_pos = torch.tensor(mol.coords).permute(2, 0, 1)
 
-    box = np.swapaxes(mol.box, 1, 0).astype(np.float64)
+    box = np.swapaxes(mol.box, 1, 0)
     if args.replicas > 1 and atom_pos.shape[0] != args.replicas:
         atom_pos = atom_pos[0].repeat(args.replicas, 1, 1)
         box = np.repeat(box[0][None, :], args.replicas, axis=0)
 
-    box_full = torch.zeros((args.replicas, 3, 3)).type(precision)
+    box_full = torch.zeros((args.replicas, 3, 3))
     for r in range(box.shape[0]):
-        box_full[r][torch.eye(3).bool()] = torch.tensor(box[r]).type(precision)
+        box_full[r][torch.eye(3).bool()] = torch.tensor(box[r])
 
     args.forceterms = [term.lower() for term in args.forceterms]
     print("Force terms: ",args.forceterms)
     ff = ForceField.create(mol, args.forcefield)
-    parameters = Parameters(ff, mol, args.forceterms, precision=precision)
+    parameters = Parameters(ff, mol, args.forceterms, precision=precision, device=device)
 
     atom_vel = maxwell_boltzmann(parameters.masses, args.temperature, args.replicas)
-    atom_forces = torch.zeros(args.replicas, mol.numAtoms, 3).to(device).type(precision)
+    atom_forces = torch.zeros(args.replicas, mol.numAtoms, 3).to(device)
 
     external = None
     if args.external is not None:
@@ -99,9 +99,8 @@ def torchmd(args):
         embeddings = torch.tensor(args.external["embeddings"]).repeat(args.replicas, 1)
         external = externalmodule.External(args.external["file"], embeddings, device)
 
-    system = Systems(atom_pos, atom_vel, box_full, atom_forces, device)
-    forces = Forces(parameters, device, terms=args.forceterms, external=external, cutoff=args.cutoff, 
-                                rfa=args.rfa, precision=precision)
+    system = Systems(atom_pos, atom_vel, box_full, atom_forces, precision, device)
+    forces = Forces(parameters, terms=args.forceterms, external=external, cutoff=args.cutoff, rfa=args.rfa)
     integrator = Integrator(system, forces, args.timestep, device, gamma=args.langevin_gamma, T=args.langevin_temperature)
     wrapper = Wrapper(mol.numAtoms, mol.bonds if "bonds" in args.forceterms else None, device)
 

@@ -14,7 +14,9 @@ def maxwell_boltzmann(masses, T, replicas=1):
     natoms = len(masses)
     velocities = []
     for i in range(replicas):
-        velocities.append(torch.sqrt(T * BOLTZMAN / masses) * torch.randn((natoms, 3)))
+        velocities.append(
+            torch.sqrt(T * BOLTZMAN / masses) * torch.randn((natoms, 3)).type_as(masses)
+        )
 
     return torch.stack(velocities, dim=0)
 
