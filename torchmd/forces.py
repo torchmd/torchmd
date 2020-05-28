@@ -5,7 +5,7 @@ import numpy as np
 from math import pi
 
 
-explicit_forces = False
+explicit_forces = True
 
 
 class Forces:
@@ -81,14 +81,21 @@ class Forces:
         return indexedarrays
 
     def compute(self, pos, box, forces, returnDetails=False):
+        if not explicit_forces:
+            pos = pos.clone().detach().requires_grad_(True)
+            # TODO: There has to be some better way than the above for not accumulating gradients over calls
+
         nsystems = pos.shape[0]
         if torch.any(torch.isnan(pos)):
             raise RuntimeError("Found NaN coordinates.")
 
         pot = []
         for i in range(nsystems):
-            pp = {v: torch.zeros(1) for v in self.energies}
-            pp["external"] = torch.zeros(1)
+            pp = {
+                v: torch.zeros(1, device=pos.device).type(pos.dtype)
+                for v in self.energies
+            }
+            pp["external"] = torch.zeros(1, device=pos.device).type(pos.dtype)
             pot.append(pp)
 
         forces.zero_()
@@ -285,13 +292,12 @@ class Forces:
                 forces += ext_force
 
         if not explicit_forces:
-            pos.retain_grad()
+            enesum = torch.zeros(1, device=pos.device, dtype=pos.dtype)
             for i in range(nsystems):
                 for ene in pot[i]:
                     if pot[i][ene].requires_grad:
-                        pot[i][ene].backward(retain_graph=True)
-            forces[:] = -pos.grad
-            pos.grad.zero_()
+                        enesum += pot[i][ene]
+            forces[:] = -torch.autograd.grad(enesum, pos, only_inputs=True)[0]
 
         if returnDetails:
             return [{k: v.cpu().item() for k, v in pp.items()} for pp in pot]
