@@ -163,7 +163,7 @@ class Parameters:
         sigma = np.array(sigma, dtype=np.float64)
         epsilon = np.array(epsilon, dtype=np.float64)
 
-        A, B = calculateAB(sigma, epsilon)
+        A, B = calculate_AB(sigma, epsilon)
         A = torch.tensor(A)
         B = torch.tensor(B)
         return A, B
@@ -196,14 +196,14 @@ class Parameters:
 
     def make_impropers(self, ff, uqatomtypes, indexes, uqimpropers, bonds):
         impropers = {"idx": [], "params": []}
-        graph = improperGraph(uqimpropers, bonds)
+        graph = improper_graph(uqimpropers, bonds)
 
         for i, impr in enumerate(uqimpropers):
             at = uqatomtypes[indexes[impr]]
             try:
                 params = ff.getImproper(*at)
             except:
-                center = detectImproperCenter(impr, graph)
+                center = detect_improper_center(impr, graph)
                 notcenter = sorted(np.setdiff1d(impr, center))
                 order = [notcenter[0], notcenter[1], center, notcenter[2]]
                 at = uqatomtypes[indexes[order]]
@@ -231,7 +231,7 @@ class Parameters:
         return torch.tensor(nonbonded_14_params)
 
 
-def calculateAB(sigma, epsilon):
+def calculate_AB(sigma, epsilon):
     # Lorentz - Berthelot combination rule
     sigma_table = 0.5 * (sigma + sigma[:, None])
     eps_table = np.sqrt(epsilon * epsilon[:, None])
@@ -243,13 +243,13 @@ def calculateAB(sigma, epsilon):
     return A, B
 
 
-def detectImproperCenter(indexes, graph):
+def detect_improper_center(indexes, graph):
     for i in indexes:
         if len(np.intersect1d(list(graph.neighbors(i)), indexes)) == 3:
             return i
 
 
-def improperGraph(impropers, bonds):
+def improper_graph(impropers, bonds):
     import networkx as nx
 
     g = nx.Graph()

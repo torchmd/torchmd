@@ -263,17 +263,12 @@ def fixParameters(parameterfile, outfile=None):
 
 
 def getTorchMDSystem(mol, device, precision):
-    from torchmd.systems import Systems
+    from torchmd.systems import System
 
-    replicas = 1
-    atom_pos = torch.tensor(mol.coords).permute(2, 0, 1)
-    atom_vel = torch.zeros_like(atom_pos)
-    atom_forces = torch.zeros(replicas, mol.numAtoms, 3)
-    box = np.swapaxes(mol.box, 1, 0)
-    box_full = torch.zeros((replicas, 3, 3))
-    for r in range(box.shape[0]):
-        box_full[r][torch.eye(3).bool()] = torch.tensor(box[r])
-    return Systems(atom_pos, atom_vel, box_full, atom_forces, precision, device)
+    system = System(mol.numAtoms, 1, precision, device)
+    system.set_positions(mol.coords)
+    system.set_box(mol.box)
+    return system
 
 
 import unittest
