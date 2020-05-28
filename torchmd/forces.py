@@ -82,8 +82,7 @@ class Forces:
 
     def compute(self, pos, box, forces, returnDetails=False):
         if not explicit_forces:
-            pos = pos.clone().detach().requires_grad_(True)
-            # TODO: There has to be some better way than the above for not accumulating gradients over calls
+            pos = pos.detach().requires_grad_(True)
 
         nsystems = pos.shape[0]
         if torch.any(torch.isnan(pos)):
