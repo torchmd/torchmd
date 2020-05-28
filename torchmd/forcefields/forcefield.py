@@ -7,39 +7,39 @@ class _ForceFieldBase(ABC):
         pass
 
     @abstractmethod
-    def getAtomTypes(self):
+    def get_atom_types(self):
         pass
 
     @abstractmethod
-    def getCharge(self, at):
+    def get_charge(self, at):
         pass
 
     @abstractmethod
-    def getMass(self, at):
+    def get_mass(self, at):
         pass
 
     @abstractmethod
-    def getLJ(self, at):
+    def get_LJ(self, at):
         pass
 
     @abstractmethod
-    def getBond(self, at1, at2):
+    def get_bond(self, at1, at2):
         pass
 
     @abstractmethod
-    def getAngle(self, at1, at2, at3):
+    def get_angle(self, at1, at2, at3):
         pass
 
     @abstractmethod
-    def getDihedral(self, at1, at2, at3, at4):
+    def get_dihedral(self, at1, at2, at3, at4):
         pass
 
     @abstractmethod
-    def get14(self, at1, at2, at3, at4):
+    def get_14(self, at1, at2, at3, at4):
         pass
 
     @abstractmethod
-    def getImproper(self, at1, at2, at3, at4):
+    def get_improper(self, at1, at2, at3, at4):
         pass
 
 

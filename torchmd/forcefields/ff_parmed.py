@@ -3,7 +3,7 @@ from math import radians
 import numpy as np
 
 
-def loadParmedParameters(fname):
+def load_parmed_parameters(fname):
     """ Convenience method for reading parameter files with parmed
 
     Parameters
@@ -51,32 +51,32 @@ class ParmedForcefield(_ForceFieldBase):
         self.mol = mol
         self.prm = prm
         if isinstance(prm, str):
-            self.prm = loadParmedParameters(prm)
+            self.prm = load_parmed_parameters(prm)
 
-    def getAtomTypes(self):
+    def get_atom_types(self):
         return np.unique(self.mol.atomtype)
 
-    def getCharge(self, at):
+    def get_charge(self, at):
         idx = np.where(self.mol.atomtype == at)[0][0]
         return self.mol.charge[idx]
 
-    def getMass(self, at):
+    def get_mass(self, at):
         idx = np.where(self.mol.atomtype == at)[0][0]
         return self.mol.masses[idx]
 
-    def getLJ(self, at):
+    def get_LJ(self, at):
         params = self.prm.atom_types[at]
         return params.sigma, params.epsilon
 
-    def getBond(self, at1, at2):
+    def get_bond(self, at1, at2):
         params = self.prm.bond_types[(at1, at2)]
         return params.k, params.req
 
-    def getAngle(self, at1, at2, at3):
+    def get_angle(self, at1, at2, at3):
         params = self.prm.angle_types[(at1, at2, at3)]
         return params.k, radians(params.theteq)
 
-    def getDihedral(self, at1, at2, at3, at4):
+    def get_dihedral(self, at1, at2, at3, at4):
         variants = [(at1, at2, at3, at4), (at4, at3, at2, at1)]
         params = None
         for var in variants:
@@ -95,7 +95,7 @@ class ParmedForcefield(_ForceFieldBase):
 
         return terms
 
-    def get14(self, at1, at2, at3, at4):
+    def get_14(self, at1, at2, at3, at4):
         variants = [(at1, at2, at3, at4), (at4, at3, at2, at1)]
         for var in variants:
             if var in self.prm.dihedral_types:
@@ -113,7 +113,7 @@ class ParmedForcefield(_ForceFieldBase):
             lj4.epsilon_14,
         )
 
-    def getImproper(self, at1, at2, at3, at4):
+    def get_improper(self, at1, at2, at3, at4):
         from itertools import permutations
 
         types = np.array((at1, at2, at3, at4))

@@ -145,10 +145,10 @@ class Parameters:
             )
 
     # def make_charges(self, ff, atomtypes):
-    #     return torch.tensor([ff.getCharge(at) for at in atomtypes])
+    #     return torch.tensor([ff.get_charge(at) for at in atomtypes])
 
     def make_masses(self, ff, atomtypes):
-        masses = torch.tensor([ff.getMass(at) for at in atomtypes])
+        masses = torch.tensor([ff.get_mass(at) for at in atomtypes])
         masses.unsqueeze_(1)  # natoms,1
         return masses
 
@@ -156,7 +156,7 @@ class Parameters:
         sigma = []
         epsilon = []
         for at in uqatomtypes:
-            ss, ee = ff.getLJ(at)
+            ss, ee = ff.get_LJ(at)
             sigma.append(ss)
             epsilon.append(ee)
 
@@ -169,10 +169,10 @@ class Parameters:
         return A, B
 
     def make_bonds(self, ff, uqbondatomtypes):
-        return torch.tensor([ff.getBond(*at) for at in uqbondatomtypes])
+        return torch.tensor([ff.get_bond(*at) for at in uqbondatomtypes])
 
     def make_angles(self, ff, uqangleatomtypes):
-        return torch.tensor([ff.getAngle(*at) for at in uqangleatomtypes])
+        return torch.tensor([ff.get_angle(*at) for at in uqangleatomtypes])
 
     def make_dihedrals(self, ff, uqdihedralatomtypes):
         from collections import defaultdict
@@ -180,7 +180,7 @@ class Parameters:
         dihedrals = defaultdict(lambda: {"idx": [], "params": []})
 
         for i, at in enumerate(uqdihedralatomtypes):
-            terms = ff.getDihedral(*at)
+            terms = ff.get_dihedral(*at)
             for j, term in enumerate(terms):
                 dihedrals[j]["idx"].append(i)
                 dihedrals[j]["params"].append(term)
@@ -201,13 +201,13 @@ class Parameters:
         for i, impr in enumerate(uqimpropers):
             at = uqatomtypes[indexes[impr]]
             try:
-                params = ff.getImproper(*at)
+                params = ff.get_improper(*at)
             except:
                 center = detect_improper_center(impr, graph)
                 notcenter = sorted(np.setdiff1d(impr, center))
                 order = [notcenter[0], notcenter[1], center, notcenter[2]]
                 at = uqatomtypes[indexes[order]]
-                params = ff.getImproper(*at)
+                params = ff.get_improper(*at)
 
             impropers["idx"].append(i)
             impropers["params"].append(params)
@@ -219,7 +219,7 @@ class Parameters:
     def make_14(self, ff, uq14atomtypes):
         nonbonded_14_params = []
         for uqdih in uq14atomtypes:
-            scnb, scee, lj1_s14, lj1_e14, lj4_s14, lj4_e14 = ff.get14(*uqdih)
+            scnb, scee, lj1_s14, lj1_e14, lj4_s14, lj4_e14 = ff.get_14(*uqdih)
             # Lorentz - Berthelot combination rule
             sig = 0.5 * (lj1_s14 + lj4_s14)
             eps = sqrt(lj1_e14 * lj4_e14)

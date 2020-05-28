@@ -3,7 +3,7 @@ import torch
 
 class Wrapper:
     def __init__(self, natoms, bonds, device):
-        self.groups, self.nongrouped = calculateMoleculeGroups(natoms, bonds, device)
+        self.groups, self.nongrouped = calculate_molecule_groups(natoms, bonds, device)
 
     def wrap(self, pos, box, wrapidx=None):
         nmol = len(self.groups)
@@ -30,7 +30,7 @@ class Wrapper:
             pos[:, self.nongrouped] -= offset.unsqueeze(1)
 
 
-def calculateMoleculeGroups(natoms, bonds, device):
+def calculate_molecule_groups(natoms, bonds, device):
     import networkx as nx
     import numpy as np
 

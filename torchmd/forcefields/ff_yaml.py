@@ -48,29 +48,29 @@ class YamlForcefield(_ForceFieldBase):
                 return termpar[atomtypestr]
         raise RuntimeError(f"{atomtypes} doesn't have {term} information in the FF")
 
-    def getAtomTypes(self):
+    def get_atom_types(self):
         return np.unique(self.prm["atomtypes"])
 
-    def getCharge(self, at):
+    def get_charge(self, at):
         params = self.get_parameters("electrostatics", [at,])
         return params["charge"]
 
-    def getMass(self, at):
+    def get_mass(self, at):
         return self.prm["masses"][at]
 
-    def getLJ(self, at):
+    def get_LJ(self, at):
         params = self.get_parameters("lj", [at,])
         return params["sigma"], params["epsilon"]
 
-    def getBond(self, at1, at2):
+    def get_bond(self, at1, at2):
         params = self.get_parameters("bonds", [at1, at2])
         return params["k0"], params["req"]
 
-    def getAngle(self, at1, at2, at3):
+    def get_angle(self, at1, at2, at3):
         params = self.get_parameters("angles", [at1, at2, at3])
         return params["k0"], radians(params["theta0"])
 
-    def getDihedral(self, at1, at2, at3, at4):
+    def get_dihedral(self, at1, at2, at3, at4):
         params = self.get_parameters("dihedrals", [at1, at2, at3, at4])
 
         terms = []
@@ -79,7 +79,7 @@ class YamlForcefield(_ForceFieldBase):
 
         return terms
 
-    def get14(self, at1, at2, at3, at4):
+    def get_14(self, at1, at2, at3, at4):
         params = self.get_parameters("dihedrals", [at1, at2, at3, at4])
 
         terms = []
@@ -97,6 +97,6 @@ class YamlForcefield(_ForceFieldBase):
             lj4["epsilon14"],
         )
 
-    def getImproper(self, at1, at2, at3, at4):
+    def get_improper(self, at1, at2, at3, at4):
         params = self.get_parameters("impropers", [at1, at2, at3, at4])
         return params["phi_k"], radians(params["phase"]), params["per"]
