@@ -9,7 +9,7 @@ class System:
         # self.box = box
         # self.forces = forces
         self.box = torch.zeros(nreplicas, 3, 3)
-        self.pos = torch.zeros(nreplicas, natoms, 3)
+        self.pos = torch.zeros(nreplicas, natoms, 3, requires_grad=True)
         self.vel = torch.zeros(nreplicas, natoms, 3)
         self.forces = torch.zeros(nreplicas, natoms, 3)
 

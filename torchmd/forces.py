@@ -5,6 +5,9 @@ import numpy as np
 from math import pi
 
 
+explicit_forces = False
+
+
 class Forces:
     """
         Parameters
@@ -84,8 +87,8 @@ class Forces:
 
         pot = []
         for i in range(nsystems):
-            pp = {v: 0 for v in self.energies}
-            pp["external"] = 0
+            pp = {v: torch.zeros(1) for v in self.energies}
+            pp["external"] = torch.zeros(1)
             pot.append(pp)
 
         forces.zero_()
@@ -112,20 +115,22 @@ class Forces:
                     )
                 E, force_coeff = evaluate_bonds(bond_dist, bond_params)
 
-                pot[i]["bonds"] += E.cpu().sum().item()
-                forcevec = bond_unitvec * force_coeff[:, None]
-                forces[i].index_add_(0, pairs[:, 0], -forcevec)
-                forces[i].index_add_(0, pairs[:, 1], forcevec)
+                pot[i]["bonds"] += E.sum()
+                if explicit_forces:
+                    forcevec = bond_unitvec * force_coeff[:, None]
+                    forces[i].index_add_(0, pairs[:, 0], -forcevec)
+                    forces[i].index_add_(0, pairs[:, 1], forcevec)
 
             if "angles" in self.energies and self.par.angles is not None:
                 _, _, r21 = calculate_distances(spos, self.par.angles[:, [0, 1]], sbox)
                 _, _, r23 = calculate_distances(spos, self.par.angles[:, [2, 1]], sbox)
                 E, angle_forces = evaluate_angles(r21, r23, self.par.angle_params)
 
-                pot[i]["angles"] += E.cpu().sum().item()
-                forces[i].index_add_(0, self.par.angles[:, 0], angle_forces[0])
-                forces[i].index_add_(0, self.par.angles[:, 1], angle_forces[1])
-                forces[i].index_add_(0, self.par.angles[:, 2], angle_forces[2])
+                pot[i]["angles"] += E.sum()
+                if explicit_forces:
+                    forces[i].index_add_(0, self.par.angles[:, 0], angle_forces[0])
+                    forces[i].index_add_(0, self.par.angles[:, 1], angle_forces[1])
+                    forces[i].index_add_(0, self.par.angles[:, 2], angle_forces[2])
 
             if "dihedrals" in self.energies and self.par.dihedrals is not None:
                 _, _, r12 = calculate_distances(
@@ -141,11 +146,20 @@ class Forces:
                     r12, r23, r34, self.par.dihedral_params
                 )
 
-                pot[i]["dihedrals"] += E.cpu().sum().item()
-                forces[i].index_add_(0, self.par.dihedrals[:, 0], dihedral_forces[0])
-                forces[i].index_add_(0, self.par.dihedrals[:, 1], dihedral_forces[1])
-                forces[i].index_add_(0, self.par.dihedrals[:, 2], dihedral_forces[2])
-                forces[i].index_add_(0, self.par.dihedrals[:, 3], dihedral_forces[3])
+                pot[i]["dihedrals"] += E.sum()
+                if explicit_forces:
+                    forces[i].index_add_(
+                        0, self.par.dihedrals[:, 0], dihedral_forces[0]
+                    )
+                    forces[i].index_add_(
+                        0, self.par.dihedrals[:, 1], dihedral_forces[1]
+                    )
+                    forces[i].index_add_(
+                        0, self.par.dihedrals[:, 2], dihedral_forces[2]
+                    )
+                    forces[i].index_add_(
+                        0, self.par.dihedrals[:, 3], dihedral_forces[3]
+                    )
 
             if "1-4" in self.energies and self.par.idx14 is not None:
                 nb_dist, nb_unitvec, _ = calculate_distances(spos, self.par.idx14, sbox)
@@ -162,10 +176,11 @@ class Forces:
                     E, force_coeff = evaluate_LJ_internal(
                         nb_dist, aa, bb, scnb, self.switch_dist, self.cutoff
                     )
-                    pot[i]["lj"] += E.cpu().sum().item()
-                    forcevec = nb_unitvec * force_coeff[:, None]
-                    forces[i].index_add_(0, self.par.idx14[:, 0], -forcevec)
-                    forces[i].index_add_(0, self.par.idx14[:, 1], forcevec)
+                    pot[i]["lj"] += E.sum()
+                    if explicit_forces:
+                        forcevec = nb_unitvec * force_coeff[:, None]
+                        forces[i].index_add_(0, self.par.idx14[:, 0], -forcevec)
+                        forces[i].index_add_(0, self.par.idx14[:, 1], forcevec)
                 if "electrostatics" in self.energies:
                     E, force_coeff = evaluate_electrostatics(
                         nb_dist,
@@ -176,10 +191,11 @@ class Forces:
                         rfa=self.rfa,
                         solventDielectric=self.solventDielectric,
                     )
-                    pot[i]["electrostatics"] += E.cpu().sum().item()
-                    forcevec = nb_unitvec * force_coeff[:, None]
-                    forces[i].index_add_(0, self.par.idx14[:, 0], -forcevec)
-                    forces[i].index_add_(0, self.par.idx14[:, 1], forcevec)
+                    pot[i]["electrostatics"] += E.sum()
+                    if explicit_forces:
+                        forcevec = nb_unitvec * force_coeff[:, None]
+                        forces[i].index_add_(0, self.par.idx14[:, 0], -forcevec)
+                        forces[i].index_add_(0, self.par.idx14[:, 1], forcevec)
 
             if "impropers" in self.energies and self.par.impropers is not None:
                 _, _, r12 = calculate_distances(
@@ -195,11 +211,20 @@ class Forces:
                     r12, r23, r34, self.par.improper_params
                 )
 
-                pot[i]["impropers"] += E.cpu().sum().item()
-                forces[i].index_add_(0, self.par.impropers[:, 0], improper_forces[0])
-                forces[i].index_add_(0, self.par.impropers[:, 1], improper_forces[1])
-                forces[i].index_add_(0, self.par.impropers[:, 2], improper_forces[2])
-                forces[i].index_add_(0, self.par.impropers[:, 3], improper_forces[3])
+                pot[i]["impropers"] += E.sum()
+                if explicit_forces:
+                    forces[i].index_add_(
+                        0, self.par.impropers[:, 0], improper_forces[0]
+                    )
+                    forces[i].index_add_(
+                        0, self.par.impropers[:, 1], improper_forces[1]
+                    )
+                    forces[i].index_add_(
+                        0, self.par.impropers[:, 2], improper_forces[2]
+                    )
+                    forces[i].index_add_(
+                        0, self.par.impropers[:, 3], improper_forces[3]
+                    )
 
             # Non-bonded terms
             if self.require_distances and len(self.ava_idx):
@@ -222,7 +247,7 @@ class Forces:
                             rfa=self.rfa,
                             solventDielectric=self.solventDielectric,
                         )
-                        pot[i][v] += E.cpu().sum().item()
+                        pot[i][v] += E.sum()
                     elif v == "lj":
                         E, force_coeff = evaluate_LJ(
                             nb_dist,
@@ -233,34 +258,45 @@ class Forces:
                             self.switch_dist,
                             self.cutoff,
                         )
-                        pot[i][v] += E.cpu().sum().item()
+                        pot[i][v] += E.sum()
                     elif v == "repulsion":
                         E, force_coeff = evaluate_repulsion(
                             nb_dist, ava_idx, self.par.mapped_atom_types, self.par.A
                         )
-                        pot[i][v] += E.cpu().sum().item()
+                        pot[i][v] += E.sum()
                     elif v == "repulsioncg":
                         E, force_coeff = evaluate_repulsion_CG(
                             nb_dist, ava_idx, self.par.mapped_atom_types, self.par.B
                         )
-                        pot[i][v] += E.cpu().sum().item()
+                        pot[i][v] += E.sum()
                     else:
                         continue
 
-                    forcevec = nb_unitvec * force_coeff[:, None]
-                    forces[i].index_add_(0, ava_idx[:, 0], -forcevec)
-                    forces[i].index_add_(0, ava_idx[:, 1], forcevec)
+                    if explicit_forces:
+                        forcevec = nb_unitvec * force_coeff[:, None]
+                        forces[i].index_add_(0, ava_idx[:, 0], -forcevec)
+                        forces[i].index_add_(0, ava_idx[:, 1], forcevec)
 
         if self.external:
             ext_ene, ext_force = self.external.calculate(pos, box)
             for s in range(nsystems):
-                pot[s]["external"] += ext_ene[s].item()
-            forces += ext_force
+                pot[s]["external"] += ext_ene[s]
+            if explicit_forces:
+                forces += ext_force
+
+        if not explicit_forces:
+            pos.retain_grad()
+            for i in range(nsystems):
+                for ene in pot[i]:
+                    if pot[i][ene].requires_grad:
+                        pot[i][ene].backward(retain_graph=True)
+            forces[:] = -pos.grad
+            pos.grad.zero_()
 
         if returnDetails:
-            return pot
+            return [{k: v.cpu().item() for k, v in pp.items()} for pp in pot]
         else:
-            return [np.sum([v for _, v in pp.items()]) for pp in pot]
+            return [np.sum([v.cpu().item() for _, v in pp.items()]) for pp in pot]
 
     def _make_indeces(self, natoms, excludepairs, device):
         fullmat = np.full((natoms, natoms), True, dtype=bool)
@@ -303,26 +339,34 @@ def evaluate_LJ(dist, pair_indeces, atom_types, A, B, switch_dist, cutoff):
 
 
 def evaluate_LJ_internal(dist, aa, bb, scale, switch_dist, cutoff):
+    force = None
+
     rinv1 = 1 / dist
     rinv6 = rinv1 ** 6
     rinv12 = rinv6 * rinv6
 
     pot = ((aa * rinv12) - (bb * rinv6)) / scale
-    force = (-12 * aa * rinv12 + 6 * bb * rinv6) * rinv1 / scale
+    if explicit_forces:
+        force = (-12 * aa * rinv12 + 6 * bb * rinv6) * rinv1 / scale
 
     # Switching function
     if switch_dist is not None and cutoff is not None:
         mask = dist > switch_dist
         t = (dist[mask] - switch_dist) / (cutoff - switch_dist)
         switch_val = 1 + t * t * t * (-10 + t * (15 - t * 6))
-        switch_deriv = t * t * (-30 + t * (60 - t * 30)) / (cutoff - switch_dist)
-        force[mask] = switch_val * force[mask] + pot[mask] * switch_deriv / dist[mask]
+        if explicit_forces:
+            switch_deriv = t * t * (-30 + t * (60 - t * 30)) / (cutoff - switch_dist)
+            force[mask] = (
+                switch_val * force[mask] + pot[mask] * switch_deriv / dist[mask]
+            )
         pot[mask] = pot[mask] * switch_val
 
     return pot, force
 
 
 def evaluate_repulsion(dist, pair_indeces, atom_types, A, scale=1):  # LJ without B
+    force = None
+
     atomtype_indices = atom_types[pair_indeces]
     aa = A[atomtype_indices[:, 0], atomtype_indices[:, 1]]
 
@@ -331,13 +375,16 @@ def evaluate_repulsion(dist, pair_indeces, atom_types, A, scale=1):  # LJ withou
     rinv12 = rinv6 * rinv6
 
     pot = (aa * rinv12) / scale
-    force = (-12 * aa * rinv12) * rinv1 / scale
+    if explicit_forces:
+        force = (-12 * aa * rinv12) * rinv1 / scale
     return pot, force
 
 
 def evaluate_repulsion_CG(
     dist, pair_indeces, atom_types, B, scale=1
 ):  # Repulsion like from CGNet
+    force = None
+
     atomtype_indices = atom_types[pair_indeces]
     coef = B[atomtype_indices[:, 0], atomtype_indices[:, 1]]
 
@@ -345,7 +392,8 @@ def evaluate_repulsion_CG(
     rinv6 = rinv1 ** 6
 
     pot = (coef * rinv6) / scale
-    force = (-6 * coef * rinv6) * rinv1 / scale
+    if explicit_forces:
+        force = (-6 * coef * rinv6) * rinv1 / scale
     return pot, force
 
 
@@ -358,6 +406,7 @@ def evaluate_electrostatics(
     rfa=False,
     solventDielectric=78.5,
 ):
+    force = None
     if rfa:  # Reaction field approximation for electrostatics with cutoff
         # http://docs.openmm.org/latest/userguide/theory.html#coulomb-interaction-with-cutoff
         # Ilario G. Tironi, René Sperb, Paul E. Smith, and Wilfred F. van Gunsteren. A generalized reaction field method
@@ -373,7 +422,8 @@ def evaluate_electrostatics(
         )
         dist2 = dist ** 2
         pot = common * ((1 / dist) + krf * dist2 - crf)
-        force = common * (2 * krf * dist - 1 / dist2)
+        if explicit_forces:
+            force = common * (2 * krf * dist - 1 / dist2)
     else:
         pot = (
             ELEC_FACTOR
@@ -382,16 +432,20 @@ def evaluate_electrostatics(
             / dist
             / scale
         )
-        force = -pot / dist
+        if explicit_forces:
+            force = -pot / dist
     return pot, force
 
 
 def evaluate_bonds(dist, bond_params):
+    force = None
+
     k0 = bond_params[:, 0]
     d0 = bond_params[:, 1]
     x = dist - d0
     pot = k0 * (x ** 2)
-    force = 2 * k0 * x
+    if explicit_forces:
+        force = 2 * k0 * x
     return pot, force
 
 
@@ -410,23 +464,23 @@ def evaluate_angles(r21, r23, angle_params):
     delta_theta = theta - theta0
     pot = k0 * delta_theta * delta_theta
 
-    sin_theta = torch.sqrt(1.0 - cos_theta * cos_theta)
-
-    coef = torch.zeros_like(sin_theta)
-    nonzero = sin_theta != 0
-    coef[nonzero] = -2.0 * k0[nonzero] * delta_theta[nonzero] / sin_theta[nonzero]
-
-    force0 = (
-        coef[:, None]
-        * (cos_theta[:, None] * r21 * norm21inv[:, None] - r23 * norm23inv[:, None])
-        * norm21inv[:, None]
-    )
-    force2 = (
-        coef[:, None]
-        * (cos_theta[:, None] * r23 * norm23inv[:, None] - r21 * norm21inv[:, None])
-        * norm23inv[:, None]
-    )
-    force1 = -(force0 + force2)
+    force0, force1, force2 = None, None, None
+    if explicit_forces:
+        sin_theta = torch.sqrt(1.0 - cos_theta * cos_theta)
+        coef = torch.zeros_like(sin_theta)
+        nonzero = sin_theta != 0
+        coef[nonzero] = -2.0 * k0[nonzero] * delta_theta[nonzero] / sin_theta[nonzero]
+        force0 = (
+            coef[:, None]
+            * (cos_theta[:, None] * r21 * norm21inv[:, None] - r23 * norm23inv[:, None])
+            * norm21inv[:, None]
+        )
+        force2 = (
+            coef[:, None]
+            * (cos_theta[:, None] * r23 * norm23inv[:, None] - r21 * norm21inv[:, None])
+            * norm23inv[:, None]
+        )
+        force1 = -(force0 + force2)
 
     return pot, (force0, force1, force2)
 
@@ -446,9 +500,10 @@ def evaluate_torsion(r12, r23, r34, torsion_params):
 
     ntorsions = len(torsion_params[0]["idx"])
     pot = torch.zeros(ntorsions, dtype=r12.dtype, layout=r12.layout, device=r12.device)
-    coeff = torch.zeros(
-        ntorsions, dtype=r12.dtype, layout=r12.layout, device=r12.device
-    )
+    if explicit_forces:
+        coeff = torch.zeros(
+            ntorsions, dtype=r12.dtype, layout=r12.layout, device=r12.device
+        )
     for i in range(0, len(torsion_params)):
         idx = torsion_params[i]["idx"]
         k0 = torsion_params[i]["params"][:, 0]
@@ -458,31 +513,38 @@ def evaluate_torsion(r12, r23, r34, torsion_params):
         if torch.all(per > 0):  # AMBER torsions
             angleDiff = per * phi[idx] - phi0
             pot.scatter_add_(0, idx, k0 * (1 + torch.cos(angleDiff)))
-            coeff.scatter_add_(0, idx, -per * k0 * torch.sin(angleDiff))
+            if explicit_forces:
+                coeff.scatter_add_(0, idx, -per * k0 * torch.sin(angleDiff))
         else:  # CHARMM torsions
             angleDiff = phi[idx] - phi0
             angleDiff[angleDiff < -pi] = angleDiff[angleDiff < -pi] + 2 * pi
             angleDiff[angleDiff > pi] = angleDiff[angleDiff > pi] - 2 * pi
             pot.scatter_add_(0, idx, k0 * angleDiff ** 2)
-            coeff.scatter_add_(0, idx, 2 * k0 * angleDiff)
+            if explicit_forces:
+                coeff.scatter_add_(0, idx, 2 * k0 * angleDiff)
 
     # coeff.unsqueeze_(1)
 
-    # Taken from OpenMM
-    normDelta2 = torch.norm(r23, dim=1)
-    norm2Delta2 = normDelta2 ** 2
-    forceFactor0 = (-coeff * normDelta2) / (normA ** 2)
-    forceFactor1 = torch.sum(r12 * r23, dim=1) / norm2Delta2
-    forceFactor2 = torch.sum(r34 * r23, dim=1) / norm2Delta2
-    forceFactor3 = (coeff * normDelta2) / (normB ** 2)
+    force0, force1, force2, force3 = None, None, None, None
+    if explicit_forces:
+        # Taken from OpenMM
+        normDelta2 = torch.norm(r23, dim=1)
+        norm2Delta2 = normDelta2 ** 2
+        forceFactor0 = (-coeff * normDelta2) / (normA ** 2)
+        forceFactor1 = torch.sum(r12 * r23, dim=1) / norm2Delta2
+        forceFactor2 = torch.sum(r34 * r23, dim=1) / norm2Delta2
+        forceFactor3 = (coeff * normDelta2) / (normB ** 2)
 
-    force0vec = forceFactor0.unsqueeze(1) * crossA
-    force3vec = forceFactor3.unsqueeze(1) * crossB
-    s = forceFactor1.unsqueeze(1) * force0vec - forceFactor2.unsqueeze(1) * force3vec
+        force0vec = forceFactor0.unsqueeze(1) * crossA
+        force3vec = forceFactor3.unsqueeze(1) * crossB
+        s = (
+            forceFactor1.unsqueeze(1) * force0vec
+            - forceFactor2.unsqueeze(1) * force3vec
+        )
 
-    force0 = -force0vec
-    force1 = force0vec + s
-    force2 = force3vec - s
-    force3 = -force3vec
+        force0 = -force0vec
+        force1 = force0vec + s
+        force2 = force3vec - s
+        force3 = -force3vec
 
     return pot, (force0, force1, force2, force3)

@@ -376,7 +376,7 @@ class _TestTorchMD(unittest.TestCase):
                     energies = forces.compute(
                         system.pos, system.box, system.forces, returnDetails=True
                     )[0]
-                    forces = system.forces.cpu().numpy()[0].squeeze()
+                    forces = system.forces.cpu().detach().numpy()[0].squeeze()
 
                     omm_energies, omm_forces = openmm_energy(
                         prm,
@@ -417,7 +417,7 @@ class _TestTorchMD(unittest.TestCase):
                 myenergies = forces.compute(
                     system.pos, system.box, system.forces, returnDetails=True
                 )[0]
-                forces = system.forces.cpu().numpy()[0].squeeze()
+                forces = system.forces.cpu().detach().numpy()[0].squeeze()
 
                 omm_energies, omm_forces = openmm_energy(
                     prm,
