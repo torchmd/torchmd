@@ -172,6 +172,8 @@ class Forces:
             if "1-4" in self.energies and self.par.idx14 is not None:
                 nb_dist, nb_unitvec, _ = calculate_distances(spos, self.par.idx14, sbox)
 
+                nonbonded_14_params = self.par.nonbonded_14_params
+                idx14 = self.par.idx14
                 if self.cutoff is not None:
                     (
                         nb_dist,
