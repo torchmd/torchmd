@@ -74,9 +74,9 @@ def openmm_energy(prm, structure, coords, box=None, cutoff=None, switch_dist=Non
     integrator = openmm.LangevinIntegrator(
         300 * unit.kelvin, 1 / unit.picoseconds, 2 * unit.femtoseconds
     )
-    platform = openmm.Platform.getPlatformByName("CPU")
-    # properties = {'CudaPrecision': 'single'}
-    context = openmm.Context(system, integrator, platform)  # , properties)
+    platform = openmm.Platform.getPlatformByName("CUDA")
+    properties = {"CudaPrecision": "double"}
+    context = openmm.Context(system, integrator, platform, properties)
 
     # Run OpenMM with given coordinates
     context.setPositions(coords * unit.angstrom)
@@ -188,51 +188,56 @@ def keepForcesAmber(
         mol.charge[:] = 0
 
 
-def compareEnergies(
-    myenergies, omm_energies, verbose=False, abstol=1e-4, compare="all"
-):
+def compareEnergies(my_ene, omm_energies, verbose=False, abstol=1e-4, compare="all"):
     if compare == "all" or compare == "angles":
-        d = myenergies["angles"] - omm_energies["angle"]
+        d = my_ene["angles"] - omm_energies["angle"]
+        if verbose:
+            print("Angle diff:", d, my_ene["angles"], omm_energies["angle"])
         if abs(d) > abstol:
             raise RuntimeError("Too high difference in angle energies:", d)
-        if verbose:
-            print("Angle diff:", d)
     if compare == "all" or compare == "bonds":
-        d = myenergies["bonds"] - omm_energies["bond"]
+        d = my_ene["bonds"] - omm_energies["bond"]
+        if verbose:
+            print("Bond diff:", d, my_ene["bonds"], omm_energies["bond"])
         if abs(d) > abstol:
             raise RuntimeError("Too high difference in bond energies:", d)
-        if verbose:
-            print("Bond diff:", d)
     if compare == "lj":
-        d = myenergies["lj"] - omm_energies["nonbonded"]
+        d = my_ene["lj"] - omm_energies["nonbonded"]
+        if verbose:
+            print("LJ diff:", d, my_ene["lj"], omm_energies["nonbonded"])
         if abs(d) > abstol:
             raise RuntimeError("Too high difference in lj energies:", d)
-        if verbose:
-            print("LJ diff:", d)
     if compare == "electrostatics":
-        d = myenergies["electrostatics"] - omm_energies["nonbonded"]
+        d = my_ene["electrostatics"] - omm_energies["nonbonded"]
+        if verbose:
+            print(
+                "Electrostatic diff:",
+                d,
+                my_ene["electrostatics"],
+                omm_energies["nonbonded"],
+            )
         if abs(d) > abstol:
             raise RuntimeError("Too high difference in electrostatic energies:", d)
-        if verbose:
-            print("Electrostatic diff:", d)
     if compare == "all" or compare == "nonbonded":
-        d = myenergies["lj"] + myenergies["electrostatics"] - omm_energies["nonbonded"]
+        my_nb = my_ene["lj"] + my_ene["electrostatics"]
+        d = my_nb - omm_energies["nonbonded"]
+        if verbose:
+            print("Nonbonded diff:", d, my_nb, omm_energies["nonbonded"])
         if abs(d) > abstol:
             raise RuntimeError("Too high difference in nonbonded energies:", d)
-        if verbose:
-            print("Nonbonded diff:", d)
     if compare == "all" or compare == "dihedrals" or compare == "impropers":
-        d = myenergies["dihedrals"] + myenergies["impropers"] - omm_energies["dihedral"]
+        my_torsions = my_ene["dihedrals"] + my_ene["impropers"]
+        d = my_torsions - omm_energies["dihedral"]
+        if verbose:
+            print("Dihedral diff:", d, my_torsions, omm_energies["dihedral"])
         if abs(d) > abstol:
             raise RuntimeError("Too high difference in dihedral energies:", d)
-        if verbose:
-            print("Dihedral diff:", d)
     if compare == "all" or compare == "total":
-        d = np.sum(list(myenergies.values())) - omm_energies["total"]
-        if abs(d) > abstol:
-            raise RuntimeError("Too high difference in total energy:", d)
+        d = np.sum(list(my_ene.values())) - omm_energies["total"]
         if verbose:
             print("Total diff:", d)
+        if abs(d) > abstol:
+            raise RuntimeError("Too high difference in total energy:", d)
     return d
 
 
@@ -296,16 +301,19 @@ class _TestTorchMD(unittest.TestCase):
 
         # for d in glob(os.path.join("test-data", "*", "")):
         # for d in [
-        #     "test-data/2ions/",
+        #     "test-data/prod_alanine_dipeptide_amber/",
         # ]:
         for d in glob(os.path.join("test-data", "*", "")):
             with self.subTest(system=d):
                 print("\nRunning test:", d)
-                if os.path.basename(os.path.abspath(d)) == "thrombin-ligand-amber":
+                testname = os.path.basename(os.path.abspath(d))
+                if testname == "thrombin-ligand-amber":
                     abstol = 1e-1
-                elif os.path.basename(os.path.abspath(d)) == "waterbox":
+                elif testname == "waterbox":
                     abstol = 1e-3
-                elif os.path.basename(os.path.abspath(d)) in ["2ions", "3ions"]:
+                elif testname == "prod_alanine_dipeptide_amber":
+                    abstol = 2e-3
+                elif testname in ["2ions", "3ions"]:
                     abstol = 1e-3  # I don't have nbfix
                 else:
                     abstol = 1e-4
@@ -314,6 +322,8 @@ class _TestTorchMD(unittest.TestCase):
                 psfFile = glob(os.path.join(d, "*.psf"))
                 pdbFile = glob(os.path.join(d, "*.pdb"))
                 xtcFile = glob(os.path.join(d, "*.xtc"))
+                xscFile = glob(os.path.join(d, "*.xsc"))
+                coorFile = glob(os.path.join(d, "*.coor"))
                 if len(glob(os.path.join(d, "*.prm"))):
                     prmFiles = [
                         fixParameters(glob(os.path.join(d, "*.prm"))[0]),
@@ -330,18 +340,29 @@ class _TestTorchMD(unittest.TestCase):
                     mol = Molecule(prmtopFile[0])
                 if len(xtcFile):
                     mol.read(natsorted(xtcFile))
+                elif len(coorFile):
+                    mol.read(coorFile)
                 elif len(pdbFile):
                     mol.read(pdbFile[0])
                 else:
                     raise RuntimeError("No PDB or XTC")
+                if len(xscFile):
+                    mol.read(xscFile)
+
                 coords = mol.coords
                 coords = coords[:, :, 0].squeeze()
                 rfa = False
                 cutoff = None
+                switch_dist = None
                 if not np.all(mol.box == 0):
                     cutoff = np.min(mol.box) / 2 - 0.01
                     switch_dist = 6
                     rfa = True
+                    if testname == "prod_alanine_dipeptide_amber":
+                        cutoff = 9
+                        switch_dist = 7.5
+                        rfa = True
+
                 precision = torch.double
                 device = "cpu"
 
@@ -387,7 +408,11 @@ class _TestTorchMD(unittest.TestCase):
                         switch_dist=switch_dist,
                     )
                     ediff = compareEnergies(
-                        energies, omm_energies, abstol=abstol, compare=forceTMD,
+                        energies,
+                        omm_energies,
+                        abstol=abstol,
+                        compare=forceTMD,
+                        verbose=False,
                     )
                     print(
                         "  ",
