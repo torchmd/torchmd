@@ -36,10 +36,12 @@ def get_args():
     parser.add_argument('--output', default='output', help='Output filename for trajectory')
     parser.add_argument('--forceterms', nargs='+', default="LJ", help='Forceterms to include, e.g. --forceterms Bonds LJ')
     parser.add_argument('--cutoff', default=None, type=float, help='LJ/Elec/Bond cutoff')
+    parser.add_argument('--switch_dist', default=None, type=float, help='Switching distance for LJ')
     parser.add_argument('--precision', default='single', type=str, help='LJ/Elec/Bond cutoff')
     parser.add_argument('--external', default=None, type=dict, help='External calculator config')
     parser.add_argument('--rfa', default=False, action='store_true', help='Enable reaction field approximation')
     parser.add_argument('--replicas', type=int, default=1, help='Number of different replicas to run')
+    parser.add_argument('--extended_system', default=None, type=float, help='xsc file for box size')
     
     args = parser.parse_args()
     os.makedirs(args.log_dir,exist_ok=True)
@@ -72,6 +74,9 @@ def torchmd(args):
     if args.coordinates is not None:
         mol.read(args.coordinates)
 
+    if args.extended_system is not None:
+        mol.read(args.extended_system)
+
     precision = precisionmap[args.precision]
 
     print("Force terms: ",args.forceterms)
@@ -82,14 +87,13 @@ def torchmd(args):
     if args.external is not None:
         externalmodule = importlib.import_module(args.external["module"])
         embeddings = torch.tensor(args.external["embeddings"]).repeat(args.replicas, 1)
-        external = externalmodule.External(args.external["file"], embeddings, device)
 
     system = System(mol.numAtoms, args.replicas, precision, device)
     system.set_positions(mol.coords)
     system.set_box(mol.box)
     system.set_velocities(maxwell_boltzmann(parameters.masses, args.temperature, args.replicas))
 
-    forces = Forces(parameters, terms=args.forceterms, external=external, cutoff=args.cutoff, rfa=args.rfa)
+    forces = Forces(parameters, terms=args.forceterms, external=external, cutoff=args.cutoff, rfa=args.rfa, switch_dist=args.switch_dist)
     integrator = Integrator(system, forces, args.timestep, device, gamma=args.langevin_gamma, T=args.langevin_temperature)
     wrapper = Wrapper(mol.numAtoms, mol.bonds if len(mol.bonds) else None, device)
 
