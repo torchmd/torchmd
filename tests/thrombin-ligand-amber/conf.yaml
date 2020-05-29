@@ -15,9 +15,9 @@ rfa: true
 save_period: 10
 seed: 1
 steps: 100
-structure:
-- test-data/thrombin-ligand-amber/structure.prmtop
-- test-data/thrombin-ligand-amber/structure.pdb
+topology:
+  - test-data/thrombin-ligand-amber/structure.prmtop
+coordinates:
+  - test-data/thrombin-ligand-amber/structure.pdb
 temperature: 300
 timestep: 4
-topology: null
