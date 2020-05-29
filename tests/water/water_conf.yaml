@@ -12,11 +12,11 @@ langevin_gamma: 0.1
 langevin_temperature: 300
 log_dir: mywaterrun
 output: output
-output_period: 1
-precision: double
+output_period: 50
+precision: single
 replicas: 2
 rfa: false
-save_period: 0
+save_period: 50
 seed: 1
 steps: 1000
 structure:

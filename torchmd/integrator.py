@@ -37,7 +37,7 @@ def _second_VV(vel, force, mass, dt):
 
 
 def langevin(vel, gamma, coeff, dt, device):
-    csi = torch.randn_like(vel).to(device) * coeff
+    csi = torch.randn_like(vel, device=device) * coeff
     vel += -gamma * vel * dt + csi
 
 
