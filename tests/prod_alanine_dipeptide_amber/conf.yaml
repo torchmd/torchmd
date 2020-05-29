@@ -1,0 +1,28 @@
+forcefield: tests/prod_alanine_dipeptide_amber/structure.prmtop
+topology: tests/prod_alanine_dipeptide_amber/structure.prmtop
+coordinates: tests/prod_alanine_dipeptide_amber/input.coor
+extended_system: tests/prod_alanine_dipeptide_amber/input.xsc
+
+seed: 1
+
+cutoff: 9
+switch_dist: 7.5
+langevin_gamma: 0.1
+langevin_temperature: 300
+replicas: 1
+rfa: true
+temperature: 300
+timestep: 4
+steps: 200
+
+external: null
+forceterms:
+
+log_dir: /tmp/alanine_dipeptide/
+output: output
+output_period: 10
+save_period: 10
+
+device: cuda
+precision: single
+
