@@ -210,8 +210,8 @@ class Forces:
                         idx14,
                         self.par.charges,
                         scee,
-                        cutoff=self.cutoff,
-                        rfa=self.rfa,
+                        cutoff=None,
+                        rfa=False,
                         solventDielectric=self.solventDielectric,
                     )
                     pot[i]["electrostatics"] += E.sum()

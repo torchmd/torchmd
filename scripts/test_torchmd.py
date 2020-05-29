@@ -312,7 +312,7 @@ class _TestTorchMD(unittest.TestCase):
                 elif testname == "waterbox":
                     abstol = 1e-3
                 elif testname == "prod_alanine_dipeptide_amber":
-                    abstol = 2e-3
+                    abstol = 1e-3
                 elif testname in ["2ions", "3ions"]:
                     abstol = 1e-3  # I don't have nbfix
                 else:
