@@ -5,12 +5,7 @@ import numpy as np
 
 class Parameters:
     def __init__(
-        self,
-        ff,
-        mol,
-        terms=("bonds", "angles", "dihedrals", "impropers", "1-4"),
-        precision=torch.float,
-        device="cpu",
+        self, ff, mol, terms=None, precision=torch.float, device="cpu",
     ):
         self.A = None
         self.B = None
@@ -29,6 +24,8 @@ class Parameters:
         self.improper_params = None
 
         self.natoms = mol.numAtoms
+        if terms is None:
+            terms = ("bonds", "angles", "dihedrals", "impropers", "1-4")
         terms = [term.lower() for term in terms]
         self.build_parameters(ff, mol, terms)
         self.precision_(precision)

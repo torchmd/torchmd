@@ -74,7 +74,6 @@ def torchmd(args):
 
     precision = precisionmap[args.precision]
 
-    args.forceterms = [term.lower() for term in args.forceterms]
     print("Force terms: ",args.forceterms)
     ff = ForceField.create(mol, args.forcefield)
     parameters = Parameters(ff, mol, args.forceterms, precision=precision, device=device)
@@ -92,7 +91,7 @@ def torchmd(args):
 
     forces = Forces(parameters, terms=args.forceterms, external=external, cutoff=args.cutoff, rfa=args.rfa)
     integrator = Integrator(system, forces, args.timestep, device, gamma=args.langevin_gamma, T=args.langevin_temperature)
-    wrapper = Wrapper(mol.numAtoms, mol.bonds if "bonds" in args.forceterms else None, device)
+    wrapper = Wrapper(mol.numAtoms, mol.bonds if len(mol.bonds) else None, device)
 
     outputname, outputext = os.path.splitext(args.output)
     trajs = []

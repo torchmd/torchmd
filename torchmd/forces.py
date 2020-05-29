@@ -31,15 +31,7 @@ class Forces:
     def __init__(
         self,
         parameters,
-        terms=(
-            "electrostatics",
-            "lj",
-            "bonds",
-            "angles",
-            "dihedrals",
-            "1-4",
-            "impropers",
-        ),
+        terms=None,
         external=None,
         cutoff=None,
         rfa=False,
@@ -48,9 +40,19 @@ class Forces:
         exclusions=("bonds", "angles", "1-4"),
     ):
         self.par = parameters
+        if terms is None:
+            terms = (
+                "electrostatics",
+                "lj",
+                "bonds",
+                "angles",
+                "dihedrals",
+                "1-4",
+                "impropers",
+            )
         self.energies = [ene.lower() for ene in terms]
         for et in self.energies:
-            if et not in self.terms:
+            if et not in Forces.terms:
                 raise ValueError(f"Force term {et} is not implemented.")
 
         if "1-4" in self.energies and not "dihedrals" in self.energies:
@@ -169,15 +171,28 @@ class Forces:
 
             if "1-4" in self.energies and self.par.idx14 is not None:
                 nb_dist, nb_unitvec, _ = calculate_distances(spos, self.par.idx14, sbox)
+
                 if self.cutoff is not None:
-                    nb_dist, nb_unitvec = self._filter_by_cutoff(
-                        nb_dist, (nb_dist, nb_unitvec)
+                    (
+                        nb_dist,
+                        nb_unitvec,
+                        nonbonded_14_params,
+                        idx14,
+                    ) = self._filter_by_cutoff(
+                        nb_dist,
+                        (
+                            nb_dist,
+                            nb_unitvec,
+                            self.par.nonbonded_14_params,
+                            self.par.idx14,
+                        ),
                     )
 
-                aa = self.par.nonbonded_14_params[:, 0]
-                bb = self.par.nonbonded_14_params[:, 1]
-                scnb = self.par.nonbonded_14_params[:, 2]
-                scee = self.par.nonbonded_14_params[:, 3]
+                aa = nonbonded_14_params[:, 0]
+                bb = nonbonded_14_params[:, 1]
+                scnb = nonbonded_14_params[:, 2]
+                scee = nonbonded_14_params[:, 3]
+
                 if "lj" in self.energies:
                     E, force_coeff = evaluate_LJ_internal(
                         nb_dist, aa, bb, scnb, self.switch_dist, self.cutoff
@@ -185,12 +200,12 @@ class Forces:
                     pot[i]["lj"] += E.sum()
                     if explicit_forces:
                         forcevec = nb_unitvec * force_coeff[:, None]
-                        forces[i].index_add_(0, self.par.idx14[:, 0], -forcevec)
-                        forces[i].index_add_(0, self.par.idx14[:, 1], forcevec)
+                        forces[i].index_add_(0, idx14[:, 0], -forcevec)
+                        forces[i].index_add_(0, idx14[:, 1], forcevec)
                 if "electrostatics" in self.energies:
                     E, force_coeff = evaluate_electrostatics(
                         nb_dist,
-                        self.par.idx14,
+                        idx14,
                         self.par.charges,
                         scee,
                         cutoff=self.cutoff,
@@ -200,8 +215,8 @@ class Forces:
                     pot[i]["electrostatics"] += E.sum()
                     if explicit_forces:
                         forcevec = nb_unitvec * force_coeff[:, None]
-                        forces[i].index_add_(0, self.par.idx14[:, 0], -forcevec)
-                        forces[i].index_add_(0, self.par.idx14[:, 1], forcevec)
+                        forces[i].index_add_(0, idx14[:, 0], -forcevec)
+                        forces[i].index_add_(0, idx14[:, 1], forcevec)
 
             if "impropers" in self.energies and self.par.impropers is not None:
                 _, _, r12 = calculate_distances(

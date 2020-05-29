@@ -53,7 +53,7 @@ class System:
     def set_velocities(self, vel):
         if vel.shape != (self.nreplicas, self.natoms, 3):
             raise RuntimeError("Velocities shape must be (nreplicas, natoms, 3)")
-        self.vel[:] = torch.tensor(vel, dtype=self.vel.dtype, device=self.vel.device)
+        self.vel[:] = vel.clone().detach().type(self.vel.dtype).to(self.vel.device)
 
     def set_box(self, box):
         if box.ndim == 1:
