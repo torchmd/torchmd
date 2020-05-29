@@ -14,7 +14,15 @@ import math
 import importlib
 from torchmd.integrator import maxwell_boltzmann
 from torchmd.utils import save_argparse, LogWriter,LoadFromFile
+
 FS2NS=1.0/1000000.0
+
+
+def viewFrame(mol, pos, forces):
+    from ffevaluation.ffevaluate import viewForces
+    mol.coords[:, :, 0] = pos[0].cpu().detach().numpy()
+    mol.view(guessBonds=False)
+    viewForces(mol, forces[0].cpu().detach().numpy()[:, :, None] * 0.01)
 
 def get_args():
     parser = argparse.ArgumentParser(description='TorchMD',prefix_chars='--')
@@ -107,6 +115,9 @@ def torchmd(args):
     iterator = tqdm(range(1,int(args.steps/args.output_period)+1))
     Epot = forces.compute(system.pos, system.box, system.forces)
     for i in iterator:
+        # from IPython.core.debugger import set_trace
+        # set_trace()
+        # viewFrame(mol, system.pos, system.forces)
         Ekin, Epot, T = integrator.step(niter=args.output_period)
         wrapper.wrap(system.pos, system.box)
         currpos = system.pos.detach().cpu().numpy().copy()

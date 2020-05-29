@@ -12,7 +12,7 @@ langevin_temperature: 300
 replicas: 1
 rfa: true
 temperature: 300
-timestep: 4
+timestep: 1
 steps: 200
 
 external: null
@@ -23,6 +23,6 @@ output: output
 output_period: 10
 save_period: 10
 
-device: cuda
+device: cpu
 precision: single
 

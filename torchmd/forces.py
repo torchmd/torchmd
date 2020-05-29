@@ -174,21 +174,21 @@ class Forces:
 
                 nonbonded_14_params = self.par.nonbonded_14_params
                 idx14 = self.par.idx14
-                if self.cutoff is not None:
-                    (
-                        nb_dist,
-                        nb_unitvec,
-                        nonbonded_14_params,
-                        idx14,
-                    ) = self._filter_by_cutoff(
-                        nb_dist,
-                        (
-                            nb_dist,
-                            nb_unitvec,
-                            self.par.nonbonded_14_params,
-                            self.par.idx14,
-                        ),
-                    )
+                # if self.cutoff is not None:
+                #     (
+                #         nb_dist,
+                #         nb_unitvec,
+                #         nonbonded_14_params,
+                #         idx14,
+                #     ) = self._filter_by_cutoff(
+                #         nb_dist,
+                #         (
+                #             nb_dist,
+                #             nb_unitvec,
+                #             self.par.nonbonded_14_params,
+                #             self.par.idx14,
+                #         ),
+                #     )
 
                 aa = nonbonded_14_params[:, 0]
                 bb = nonbonded_14_params[:, 1]
@@ -197,7 +197,7 @@ class Forces:
 
                 if "lj" in self.energies:
                     E, force_coeff = evaluate_LJ_internal(
-                        nb_dist, aa, bb, scnb, self.switch_dist, self.cutoff
+                        nb_dist, aa, bb, scnb, None, None
                     )
                     pot[i]["lj"] += E.sum()
                     if explicit_forces:
