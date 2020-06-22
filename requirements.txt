@@ -1,3 +1,4 @@
 pyyaml
 torch
 torchvision
+scipy # Only needed for minimizers
