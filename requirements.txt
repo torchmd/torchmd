@@ -1,4 +1,3 @@
 pyyaml
-ipython
 torch
 torchvision

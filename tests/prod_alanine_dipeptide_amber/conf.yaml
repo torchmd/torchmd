@@ -13,16 +13,17 @@ replicas: 1
 rfa: true
 temperature: 300
 timestep: 1
-steps: 200
+minimize: 1000
+steps: 2000
 
 external: null
 forceterms:
 
 log_dir: /tmp/alanine_dipeptide/
 output: output
-output_period: 10
-save_period: 10
+output_period: 1000
+save_period: 1000
 
-device: cpu
+device: cuda
 precision: single
 

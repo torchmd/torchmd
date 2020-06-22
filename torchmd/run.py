@@ -50,6 +50,7 @@ def get_args():
     parser.add_argument('--rfa', default=False, action='store_true', help='Enable reaction field approximation')
     parser.add_argument('--replicas', type=int, default=1, help='Number of different replicas to run')
     parser.add_argument('--extended_system', default=None, type=float, help='xsc file for box size')
+    parser.add_argument('--minimize', default=None, type=int, help='Minimize the system for `minimize` steps')
     
     args = parser.parse_args()
     os.makedirs(args.log_dir,exist_ok=True)
@@ -112,11 +113,13 @@ def torchmd(args):
         logs.append(LogWriter(args.log_dir,keys=('iter','ns','epot','ekin','etot','T'), name=f'monitor_{k}.csv'))
         trajs.append([])
 
+    from torchmd.minimizers import minimize_bfgs
+    if args.minimize != None:
+        minimize_bfgs(system, forces, steps=args.minimize)
+
     iterator = tqdm(range(1,int(args.steps/args.output_period)+1))
     Epot = forces.compute(system.pos, system.box, system.forces)
     for i in iterator:
-        # from IPython.core.debugger import set_trace
-        # set_trace()
         # viewFrame(mol, system.pos, system.forces)
         Ekin, Epot, T = integrator.step(niter=args.output_period)
         wrapper.wrap(system.pos, system.box)
