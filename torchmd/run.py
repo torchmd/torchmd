@@ -24,7 +24,7 @@ def viewFrame(mol, pos, forces):
     mol.view(guessBonds=False)
     viewForces(mol, forces[0].cpu().detach().numpy()[:, :, None] * 0.01)
 
-def get_args():
+def get_args(arguments=None):
     parser = argparse.ArgumentParser(description='TorchMD',prefix_chars='--')
     parser.add_argument('--conf', type=open, action=LoadFromFile, help='Use a configuration file, e.g. python run.py --conf input.conf')
     parser.add_argument('--timestep', default=1, type=float, help='Timestep in fs')
@@ -52,7 +52,7 @@ def get_args():
     parser.add_argument('--extended_system', default=None, type=float, help='xsc file for box size')
     parser.add_argument('--minimize', default=None, type=int, help='Minimize the system for `minimize` steps')
     
-    args = parser.parse_args()
+    args = parser.parse_args(args=arguments)
     os.makedirs(args.log_dir,exist_ok=True)
     save_argparse(args,os.path.join(args.log_dir,'input.yaml'),exclude='conf')
 
@@ -69,7 +69,7 @@ def get_args():
 
 precisionmap = {'single': torch.float, 'double': torch.double}
 
-def torchmd(args):
+def setup(args):
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
     device = torch.device(args.device)
@@ -104,6 +104,13 @@ def torchmd(args):
     system.set_velocities(maxwell_boltzmann(parameters.masses, args.temperature, args.replicas))
 
     forces = Forces(parameters, terms=args.forceterms, external=external, cutoff=args.cutoff, rfa=args.rfa, switch_dist=args.switch_dist)
+    return mol, system, forces
+
+def dynamics(args, mol, system, forces):
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed_all(args.seed)
+    device = torch.device(args.device)
+
     integrator = Integrator(system, forces, args.timestep, device, gamma=args.langevin_gamma, T=args.langevin_temperature)
     wrapper = Wrapper(mol.numAtoms, mol.bonds if len(mol.bonds) else None, device)
 
@@ -137,6 +144,7 @@ def torchmd(args):
 
 if __name__ == "__main__":
     args = get_args()
-    torchmd(args)
+    mol, system, forces = setup(args)
+    dynamics(args, mol, system, forces)
 
 

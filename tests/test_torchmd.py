@@ -462,6 +462,34 @@ class _TestTorchMD(unittest.TestCase):
                     compareForces(forces, omm_forces),
                 )
 
+    def test_cg(self):
+        from torchmd.run import get_args, setup
+
+        args = get_args(["--conf", "tests/cg/conf.yaml"])
+        mol, system, forces = setup(args)
+
+        reference = [
+            {
+                "bonds": 6.054834888544265,
+                "angles": 2.4312314931533345,
+                "repulsioncg": 3.9667452882420924,
+                "external": -76.44873809814453,
+            },
+            {
+                "bonds": 6.054834888544265,
+                "angles": 2.4312314931533345,
+                "repulsioncg": 3.9667452882420924,
+                "external": -76.44874572753906,
+            },
+        ]
+        Epot = forces.compute(system.pos, system.box, system.forces, returnDetails=True)
+        for i in range(len(reference)):
+            for term in reference[i]:
+                if abs(Epot[i][term] - reference[i][term]) > 1e-5:
+                    raise RuntimeError(
+                        f"Difference in energies detected for term {term}: {Epot[i][term]} vs reference {reference[i][term]}"
+                    )
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

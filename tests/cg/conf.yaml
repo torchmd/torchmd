@@ -1,6 +1,6 @@
 coordinates: null
 cutoff: 7.3
-device: cuda
+device: cpu
 external: null
 forcefield: tests/cg/forcefield.yaml
 forceterms:
