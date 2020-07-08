@@ -25,6 +25,11 @@ import numpy as np
 def minimize_bfgs(system, forces, fmax=0.5, steps=1000):
     from scipy.optimize import minimize
 
+    if system.pos.shape[0] != 1:
+        raise RuntimeError(
+            "System minimization currently doesn't support replicas. Talk with Stefan to implement it."
+        )
+
     def evalfunc(coords, info):
         coords = coords.reshape(1, -1, 3)
         coords = torch.tensor(coords).type_as(system.pos)
@@ -42,11 +47,15 @@ def minimize_bfgs(system, forces, fmax=0.5, steps=1000):
 
     print("{0:4s} {1:9s}       {2:9s}".format("Iter", " Epot", " fmax"))
     x0 = system.pos.detach().cpu().numpy()[0].astype(np.float64)
-    minimize(
+    res = minimize(
         evalfunc,
         x0,
         method="L-BFGS-B",
         jac=True,
         options={"gtol": fmax, "maxiter": steps, "disp": False},
         args=({"Nfeval": 0},),
+    )
+
+    system.pos = torch.tensor(
+        res.x.reshape(1, -1, 3), dtype=system.pos.dtype, device=system.pos.device
     )
