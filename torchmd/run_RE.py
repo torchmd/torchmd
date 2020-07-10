@@ -14,7 +14,7 @@ import math
 import importlib
 from torchmd.integrator import maxwell_boltzmann
 from torchmd.utils import save_argparse, LogWriter,LoadFromFile
-from torchmd.replica_exchage import temp_exchange
+from torchmd.replica_exchange import temp_exchange
 
 FS2NS=1.0/1000000.0
 
@@ -66,8 +66,8 @@ def get_args(arguments=None):
         args.save_period = 10*args.output_period
     if args.save_period%args.output_period!=0:
         raise ValueError('save-period must be multiple of output-period.')
-    if args.replica_echange is not None:
-        if args.replicas % len(args.replica_echange['temperature']) != 0 and args.replicas % len(args.replica_exchange['langevin_temperature']) != 0:
+    if args.replica_exchange is not None:
+        if args.replicas % len(args.replica_exchange['temperature']) != 0 and args.replicas % len(args.replica_exchange['langevin_temperature']) != 0:
             raise ValueError('Number of replicas must be a multiplication or elements in replica exchange temperature array.')
 
     return args
@@ -104,8 +104,8 @@ def setup(args):
         external = externalmodule.External(args.external["file"], embeddings, device)
 
     if args.replica_exchange is not None:
-        args.temperature = torch.tensor(args.replica_exchange['temperature']).repeat(args.replicas/len(args.replica_exchange['temperature']))
-        args.langevin_temperature = torch.tensor(args.replica_exchange['langevin_temperature']).repeat(args.replicas/len(args.replica_exchange['langevin_temperature']))
+        args.temperature = np.array(args.replica_exchange['temperature']).repeat(args.replicas/len(args.replica_exchange['temperature']))
+        args.langevin_temperature = np.array(args.replica_exchange['langevin_temperature']).repeat(args.replicas/len(args.replica_exchange['langevin_temperature']))
     else:
          args.temperature = torch.tensor([args.temperature]).repeat(args.replicas)
          args.langevin_temperature = torch.tensor([args.langevin_temperature]).repeat(args.replicas)
@@ -155,7 +155,7 @@ def dynamics(args, mol, system, forces):
         
         if args.replica_exchange is not None:
             if (i*args.output_period) % args.replica_exchange['exchange_interval'] == 0:
-                args.langevin_temperature = temp_exchange(integrator.T, Epot)
+                args.langevin_temperature = temp_exchange(integrator.T.cpu().numpy(), Epot)
                 integrator = Integrator(system, forces, args.timestep, device, gamma=args.langevin_gamma, T=args.langevin_temperature)  
 
 if __name__ == "__main__":
