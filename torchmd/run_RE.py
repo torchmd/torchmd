@@ -14,6 +14,7 @@ import math
 import importlib
 from torchmd.integrator import maxwell_boltzmann
 from torchmd.utils import save_argparse, LogWriter,LoadFromFile
+from torchmd.replica_exchage import temp_exchange
 
 FS2NS=1.0/1000000.0
 
@@ -51,7 +52,8 @@ def get_args(arguments=None):
     parser.add_argument('--replicas', type=int, default=1, help='Number of different replicas to run')
     parser.add_argument('--extended_system', default=None, type=float, help='xsc file for box size')
     parser.add_argument('--minimize', default=None, type=int, help='Minimize the system for `minimize` steps')
-    
+    parser.add_argument('--replica-exchange', default=None, type=dict, help='Replica exchange config')
+     
     args = parser.parse_args(args=arguments)
     os.makedirs(args.log_dir,exist_ok=True)
     save_argparse(args,os.path.join(args.log_dir,'input.yaml'),exclude='conf')
@@ -64,6 +66,9 @@ def get_args(arguments=None):
         args.save_period = 10*args.output_period
     if args.save_period%args.output_period!=0:
         raise ValueError('save-period must be multiple of output-period.')
+    if args.replica_echange is not None:
+        if args.replicas % len(args.replica_echange['temperature']) != 0 and args.replicas % len(args.replica_exchange['langevin_temperature']) != 0:
+            raise ValueError('Number of replicas must be a multiplication or elements in replica exchange temperature array.')
 
     return args
 
@@ -97,6 +102,14 @@ def setup(args):
         externalmodule = importlib.import_module(args.external["module"])
         embeddings = torch.tensor(args.external["embeddings"]).repeat(args.replicas, 1)
         external = externalmodule.External(args.external["file"], embeddings, device)
+
+    if args.replica_exchange is not None:
+        args.temperature = torch.tensor(args.replica_exchange['temperature']).repeat(args.replicas/len(args.replica_exchange['temperature']))
+        args.langevin_temperature = torch.tensor(args.replica_exchange['langevin_temperature']).repeat(args.replicas/len(args.replica_exchange['langevin_temperature']))
+    else:
+         args.temperature = torch.tensor([args.temperature]).repeat(args.replicas)
+         args.langevin_temperature = torch.tensor([args.langevin_temperature]).repeat(args.replicas)
+
 
     system = System(mol.numAtoms, args.replicas, precision, device)
     system.set_positions(mol.coords)
@@ -140,7 +153,10 @@ def dynamics(args, mol, system, forces):
             logs[k].write_row({'iter':i*args.output_period,'ns':FS2NS*i*args.output_period*args.timestep,'epot':Epot[k],
                                 'ekin':Ekin[k],'etot':Epot[k]+Ekin[k],'T':T[k]})
         
-                
+        if args.replica_exchange is not None:
+            if (i*args.output_period) % args.replica_exchange['exchange_interval'] == 0:
+                args.langevin_temperature = temp_exchange(integrator.T, Epot)
+                integrator = Integrator(system, forces, args.timestep, device, gamma=args.langevin_gamma, T=args.langevin_temperature)  
 
 if __name__ == "__main__":
     args = get_args()
