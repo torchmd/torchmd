@@ -131,7 +131,10 @@ def dynamics(args, mol, system, forces):
     trajs = []
     logs = []
     for k in range(args.replicas):
-        logs.append(LogWriter(args.log_dir,keys=('iter','ns','epot','ekin','etot','T'), name=f'monitor_{k}.csv'))
+        if args.replica_exchange is not None:
+            logs.append(LogWriter(args.log_dir,keys=('iter','ns','epot','ekin','etot','T','T_rep'), name=f'monitor_{k}.csv'))
+        else:
+            logs.append(LogWriter(args.log_dir,keys=('iter','ns','epot','ekin','etot','T'), name=f'monitor_{k}.csv'))
         trajs.append([])
 
     from torchmd.minimizers import minimize_bfgs
@@ -150,7 +153,11 @@ def dynamics(args, mol, system, forces):
             if (i*args.output_period) % args.save_period  == 0:
                 np.save(os.path.join(args.log_dir, f"{outputname}_{k}{outputext}"), np.stack(trajs[k], axis=2)) #ideally we want to append
             
-            logs[k].write_row({'iter':i*args.output_period,'ns':FS2NS*i*args.output_period*args.timestep,'epot':Epot[k],
+            if args.replica_exchange is not None:
+                logs[k].write_row({'iter':i*args.output_period,'ns':FS2NS*i*args.output_period*args.timestep,'epot':Epot[k],
+                                'ekin':Ekin[k],'etot':Epot[k]+Ekin[k],'T':T[k],'T_rep':integrator.T[k].detach().item()})
+            else:
+                logs[k].write_row({'iter':i*args.output_period,'ns':FS2NS*i*args.output_period*args.timestep,'epot':Epot[k],
                                 'ekin':Ekin[k],'etot':Epot[k]+Ekin[k],'T':T[k]})
         
         if args.replica_exchange is not None:
