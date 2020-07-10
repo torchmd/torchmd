@@ -15,7 +15,7 @@ def maxwell_boltzmann(masses, T, replicas=1):
     velocities = []
     for i in range(replicas):
         velocities.append(
-            torch.sqrt(T * BOLTZMAN / masses) * torch.randn((natoms, 3)).type_as(masses)
+            torch.sqrt(T[i] * BOLTZMAN / masses) * torch.randn((natoms, 3)).type_as(masses)
         )
 
     return torch.stack(velocities, dim=0)
@@ -53,7 +53,7 @@ class Integrator:
         gamma = gamma / PICOSEC2TIMEU
         self.gamma = gamma
         self.T = T
-        if T:
+        if T.any():
             M = self.forces.par.masses
             self.vcoeff = torch.sqrt(2.0 * gamma / M * BOLTZMAN * T * self.dt).to(
                 device
@@ -66,7 +66,7 @@ class Integrator:
         for _ in range(niter):
             _first_VV(s.pos, s.vel, s.forces, masses, self.dt)
             pot = self.forces.compute(s.pos, s.box, s.forces)
-            if self.T:
+            if self.T.any():
                 langevin(s.vel, self.gamma, self.vcoeff, self.dt, self.device)
             _second_VV(s.vel, s.forces, masses, self.dt)
 
