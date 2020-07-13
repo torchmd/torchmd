@@ -52,10 +52,10 @@ class Integrator:
         self.device = device
         gamma = gamma / PICOSEC2TIMEU
         self.gamma = gamma
-        self.T = T
-        if T.any():
+        self.T = torch.tensor(T).to(device)
+        if T[0]:
             M = self.forces.par.masses
-            self.vcoeff = torch.sqrt(2.0 * gamma / M * BOLTZMAN * T * self.dt).to(
+            self.vcoeff = torch.sqrt(2.0 * gamma / M * BOLTZMAN * self.T * self.dt).transpose(-1,0).reshape([-1, systems.natoms, 1]).to(
                 device
             )
 
@@ -66,7 +66,7 @@ class Integrator:
         for _ in range(niter):
             _first_VV(s.pos, s.vel, s.forces, masses, self.dt)
             pot = self.forces.compute(s.pos, s.box, s.forces)
-            if self.T.any():
+            if self.T[0]:
                 langevin(s.vel, self.gamma, self.vcoeff, self.dt, self.device)
             _second_VV(s.vel, s.forces, masses, self.dt)
 
