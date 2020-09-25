@@ -5,9 +5,6 @@ import numpy as np
 from math import pi
 
 
-explicit_forces = True
-
-
 class Forces:
     """
         Parameters
@@ -82,9 +79,11 @@ class Forces:
             indexedarrays.append(arr[under_cutoff])
         return indexedarrays
 
-    def compute(self, pos, box, forces, returnDetails=False):
-        if not explicit_forces:
-            pos = pos.detach().requires_grad_(True)
+    def compute(self, pos, box, forces, returnDetails=False, explicit_forces=True):
+        if not explicit_forces and not pos.requires_grad:
+            raise RuntimeError(
+                "The positions passed don't require gradients. Please use pos.detach().requires_grad_(True) before passing."
+            )
 
         nsystems = pos.shape[0]
         if torch.any(torch.isnan(pos)):
@@ -121,7 +120,7 @@ class Forces:
                     ) = self._filter_by_cutoff(
                         bond_dist, (bond_dist, bond_unitvec, pairs, bond_params)
                     )
-                E, force_coeff = evaluate_bonds(bond_dist, bond_params)
+                E, force_coeff = evaluate_bonds(bond_dist, bond_params, explicit_forces)
 
                 pot[i]["bonds"] += E.sum()
                 if explicit_forces:
@@ -132,7 +131,9 @@ class Forces:
             if "angles" in self.energies and self.par.angles is not None:
                 _, _, r21 = calculate_distances(spos, self.par.angles[:, [0, 1]], sbox)
                 _, _, r23 = calculate_distances(spos, self.par.angles[:, [2, 1]], sbox)
-                E, angle_forces = evaluate_angles(r21, r23, self.par.angle_params)
+                E, angle_forces = evaluate_angles(
+                    r21, r23, self.par.angle_params, explicit_forces
+                )
 
                 pot[i]["angles"] += E.sum()
                 if explicit_forces:
@@ -151,7 +152,7 @@ class Forces:
                     spos, self.par.dihedrals[:, [2, 3]], sbox
                 )
                 E, dihedral_forces = evaluate_torsion(
-                    r12, r23, r34, self.par.dihedral_params
+                    r12, r23, r34, self.par.dihedral_params, explicit_forces
                 )
 
                 pot[i]["dihedrals"] += E.sum()
@@ -197,7 +198,7 @@ class Forces:
 
                 if "lj" in self.energies:
                     E, force_coeff = evaluate_LJ_internal(
-                        nb_dist, aa, bb, scnb, None, None
+                        nb_dist, aa, bb, scnb, None, None, explicit_forces
                     )
                     pot[i]["lj"] += E.sum()
                     if explicit_forces:
@@ -213,6 +214,7 @@ class Forces:
                         cutoff=None,
                         rfa=False,
                         solventDielectric=self.solventDielectric,
+                        explicit_forces=explicit_forces,
                     )
                     pot[i]["electrostatics"] += E.sum()
                     if explicit_forces:
@@ -231,7 +233,7 @@ class Forces:
                     spos, self.par.impropers[:, [2, 3]], sbox
                 )
                 E, improper_forces = evaluate_torsion(
-                    r12, r23, r34, self.par.improper_params
+                    r12, r23, r34, self.par.improper_params, explicit_forces
                 )
 
                 pot[i]["impropers"] += E.sum()
@@ -269,6 +271,7 @@ class Forces:
                             cutoff=self.cutoff,
                             rfa=self.rfa,
                             solventDielectric=self.solventDielectric,
+                            explicit_forces=explicit_forces,
                         )
                         pot[i][v] += E.sum()
                     elif v == "lj":
@@ -280,16 +283,25 @@ class Forces:
                             self.par.B,
                             self.switch_dist,
                             self.cutoff,
+                            explicit_forces,
                         )
                         pot[i][v] += E.sum()
                     elif v == "repulsion":
                         E, force_coeff = evaluate_repulsion(
-                            nb_dist, ava_idx, self.par.mapped_atom_types, self.par.A
+                            nb_dist,
+                            ava_idx,
+                            self.par.mapped_atom_types,
+                            self.par.A,
+                            explicit_forces,
                         )
                         pot[i][v] += E.sum()
                     elif v == "repulsioncg":
                         E, force_coeff = evaluate_repulsion_CG(
-                            nb_dist, ava_idx, self.par.mapped_atom_types, self.par.B
+                            nb_dist,
+                            ava_idx,
+                            self.par.mapped_atom_types,
+                            self.par.B,
+                            explicit_forces,
                         )
                         pot[i][v] += E.sum()
                     else:
@@ -313,7 +325,10 @@ class Forces:
                 for ene in pot[i]:
                     if pot[i][ene].requires_grad:
                         enesum += pot[i][ene]
-            forces[:] = -torch.autograd.grad(enesum, pos, only_inputs=True)[0]
+            forces[:] = -torch.autograd.grad(
+                enesum, pos, only_inputs=True, retain_graph=True
+            )[0]
+            return enesum
 
         if returnDetails:
             return [{k: v.cpu().item() for k, v in pp.items()} for pp in pot]
@@ -353,14 +368,18 @@ ELEC_FACTOR /= const.angstrom  # Convert Angstroms to meters
 ELEC_FACTOR *= const.Avogadro / (const.kilo * const.calorie)  # Convert J to kcal/mol
 
 
-def evaluate_LJ(dist, pair_indeces, atom_types, A, B, switch_dist, cutoff):
+def evaluate_LJ(
+    dist, pair_indeces, atom_types, A, B, switch_dist, cutoff, explicit_forces=True
+):
     atomtype_indices = atom_types[pair_indeces]
     aa = A[atomtype_indices[:, 0], atomtype_indices[:, 1]]
     bb = B[atomtype_indices[:, 0], atomtype_indices[:, 1]]
-    return evaluate_LJ_internal(dist, aa, bb, 1, switch_dist, cutoff)
+    return evaluate_LJ_internal(dist, aa, bb, 1, switch_dist, cutoff, explicit_forces)
 
 
-def evaluate_LJ_internal(dist, aa, bb, scale, switch_dist, cutoff):
+def evaluate_LJ_internal(
+    dist, aa, bb, scale, switch_dist, cutoff, explicit_forces=True
+):
     force = None
 
     rinv1 = 1 / dist
@@ -386,7 +405,9 @@ def evaluate_LJ_internal(dist, aa, bb, scale, switch_dist, cutoff):
     return pot, force
 
 
-def evaluate_repulsion(dist, pair_indeces, atom_types, A, scale=1):  # LJ without B
+def evaluate_repulsion(
+    dist, pair_indeces, atom_types, A, scale=1, explicit_forces=True
+):  # LJ without B
     force = None
 
     atomtype_indices = atom_types[pair_indeces]
@@ -403,7 +424,7 @@ def evaluate_repulsion(dist, pair_indeces, atom_types, A, scale=1):  # LJ withou
 
 
 def evaluate_repulsion_CG(
-    dist, pair_indeces, atom_types, B, scale=1
+    dist, pair_indeces, atom_types, B, scale=1, explicit_forces=True
 ):  # Repulsion like from CGNet
     force = None
 
@@ -427,6 +448,7 @@ def evaluate_electrostatics(
     cutoff=None,
     rfa=False,
     solventDielectric=78.5,
+    explicit_forces=True,
 ):
     force = None
     if rfa:  # Reaction field approximation for electrostatics with cutoff
@@ -459,7 +481,7 @@ def evaluate_electrostatics(
     return pot, force
 
 
-def evaluate_bonds(dist, bond_params):
+def evaluate_bonds(dist, bond_params, explicit_forces=True):
     force = None
 
     k0 = bond_params[:, 0]
@@ -471,7 +493,7 @@ def evaluate_bonds(dist, bond_params):
     return pot, force
 
 
-def evaluate_angles(r21, r23, angle_params):
+def evaluate_angles(r21, r23, angle_params, explicit_forces=True):
     k0 = angle_params[:, 0]
     theta0 = angle_params[:, 1]
 
@@ -507,7 +529,7 @@ def evaluate_angles(r21, r23, angle_params):
     return pot, (force0, force1, force2)
 
 
-def evaluate_torsion(r12, r23, r34, torsion_params):
+def evaluate_torsion(r12, r23, r34, torsion_params, explicit_forces=True):
     # Calculate dihedral angles from vectors
     crossA = torch.cross(r12, r23, dim=1)
     crossB = torch.cross(r23, r34, dim=1)
