@@ -19,4 +19,4 @@ conda install pyyaml ipython
 Various examples can be found in the `examples` folder on how to perform dynamics using TorchMD.
 
 ## Acknowledgements
-We would like to acknowledge funding by the Chan Zuckerberg Initiative in support of this project.
+We would like to acknowledge funding by the Chan Zuckerberg Initiative and Acellera in support of this project.
