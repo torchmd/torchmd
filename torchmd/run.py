@@ -14,8 +14,9 @@ import math
 import importlib
 from torchmd.integrator import maxwell_boltzmann
 from torchmd.utils import save_argparse, LogWriter,LoadFromFile
+from torchmd.minimizers import minimize_bfgs
 
-FS2NS=1.0/1000000.0
+FS2NS=1E-6
 
 
 def viewFrame(mol, pos, forces):
@@ -121,7 +122,6 @@ def dynamics(args, mol, system, forces):
         logs.append(LogWriter(args.log_dir,keys=('iter','ns','epot','ekin','etot','T'), name=f'monitor_{k}.csv'))
         trajs.append([])
 
-    from torchmd.minimizers import minimize_bfgs
     if args.minimize != None:
         minimize_bfgs(system, forces, steps=args.minimize)
 
