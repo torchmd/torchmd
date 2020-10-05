@@ -13,10 +13,12 @@ conda create -n torchmd
 conda activate torchmd
 conda install pytorch torchvision cudatoolkit=10.1 -c pytorch
 conda install pyyaml ipython
+
+pip install torchmd
 ```
 
 ## Examples
 Various examples can be found in the `examples` folder on how to perform dynamics using TorchMD.
 
 ## Acknowledgements
-We would like to acknowledge funding by the Chan Zuckerberg Initiative and Acellera in support of this project. This project will be now developped in collaboration with openMM (www.openmm.org) and acemd (www.acellera.com/acemd).
+We would like to acknowledge funding by the Chan Zuckerberg Initiative and Acellera in support of this project. This project will be now developed in collaboration with openMM (www.openmm.org) and acemd (www.acellera.com/acemd).
