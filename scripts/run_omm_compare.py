@@ -2,7 +2,7 @@ import os
 import torch
 from torchmd.systems import System
 from moleculekit.molecule import Molecule
-from torchmd.forcefields.forcefield import Forcefield
+from torchmd.forcefields.forcefield import ForceField
 from torchmd.parameters import Parameters
 from torchmd.forces import Forces
 from torchmd.integrator import Integrator
@@ -55,10 +55,10 @@ bonds = mol.bonds.astype(int).copy()
 angles = mol.angles.astype(int).copy()
 
 print("Force terms: ", args.forceterms)
-ff = Forcefield.create(mol, args.forcefield)
+ff = ForceField.create(mol, args.forcefield)
 parameters = Parameters(ff, mol)
 
-# forcefield = Forcefield(args.forcefield, precision=precision)
+# forcefield = ForceField(args.forcefield, precision=precision)
 # parameters = forcefield.create(atom_types, bonds=bonds, angles=angles)
 
 atom_vel = maxwell_boltzmann(parameters.masses, args.temperature, replicas)
