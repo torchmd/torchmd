@@ -12,7 +12,7 @@ We recommend installing TorchMD in a new python environment ideally through the 
 conda create -n torchmd
 conda activate torchmd
 conda install pytorch torchvision cudatoolkit=10.1 -c pytorch
-conda install pyyaml ipython
+conda install ipython
 
 pip install torchmd
 ```

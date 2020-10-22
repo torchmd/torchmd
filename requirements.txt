@@ -1,4 +1,6 @@
 pyyaml
-torch
-torchvision
+tqdm
+moleculekit
+pandas
+networkx
 scipy # Only needed for minimizers
