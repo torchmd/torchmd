@@ -5,6 +5,9 @@ import numpy as np
 def minimize_bfgs(system, forces, fmax=0.5, steps=1000):
     from scipy.optimize import minimize
 
+    if steps == 0:
+        return
+
     if system.pos.shape[0] != 1:
         raise RuntimeError(
             "System minimization currently doesn't support replicas. Talk with Stefan to implement it."
@@ -46,6 +49,9 @@ def minimize_bfgs(system, forces, fmax=0.5, steps=1000):
 
 
 def minimize_pytorch_bfgs(system, forces, steps=1000):
+    if steps == 0:
+        return
+
     pos = system.pos.detach().requires_grad_(True)
     opt = torch.optim.LBFGS([pos], max_iter=steps, tolerance_change=1e-09)
 
