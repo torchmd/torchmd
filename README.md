@@ -5,6 +5,19 @@ TorchMD intends to provide a simple to use API for performing molecular dynamics
 
 TorchMD is currently WIP so feel free to provide feedback on the API or potential bugs in the GitHub issue tracker.
 
+## Citation
+Please cite:
+```
+@misc{doerr2020torchmd,
+      title={TorchMD: A deep learning framework for molecular simulations}, 
+      author={Stefan Doerr and Maciej Majewsk and Adrià Pérez and Andreas Krämer and Cecilia Clementi and Frank Noe and Toni Giorgino and Gianni De Fabritiis},
+      year={2020},
+      eprint={2012.12106},
+      archivePrefix={arXiv},
+      primaryClass={physics.chem-ph}
+}
+```
+
 ## Installation
 We recommend installing TorchMD in a new python environment ideally through the Miniconda package manager.
 
