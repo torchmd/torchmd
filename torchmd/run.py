@@ -52,6 +52,7 @@ def get_args(arguments=None):
     parser.add_argument('--replicas', type=int, default=1, help='Number of different replicas to run')
     parser.add_argument('--extended_system', default=None, type=float, help='xsc file for box size')
     parser.add_argument('--minimize', default=None, type=int, help='Minimize the system for `minimize` steps')
+    parser.add_argument('--exclusions', default=('bonds', 'angles', '1-4'), type=tuple, help='exclusions for the LJ or repulsionCG term')
     
     args = parser.parse_args(args=arguments)
     os.makedirs(args.log_dir,exist_ok=True)
@@ -104,7 +105,7 @@ def setup(args):
     system.set_box(mol.box)
     system.set_velocities(maxwell_boltzmann(parameters.masses, args.temperature, args.replicas))
 
-    forces = Forces(parameters, terms=args.forceterms, external=external, cutoff=args.cutoff, rfa=args.rfa, switch_dist=args.switch_dist)
+    forces = Forces(parameters, terms=args.forceterms, external=external, cutoff=args.cutoff, rfa=args.rfa, switch_dist=args.switch_dist, exclusions=args.exclusions)
     return mol, system, forces
 
 def dynamics(args, mol, system, forces):
