@@ -74,6 +74,9 @@ precisionmap = {'single': torch.float, 'double': torch.double}
 def setup(args):
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
+    #TODO: We might want to set TF32 to false by default
+    #torch.backends.cuda.matmul.allow_tf32 = False
+    #torch.backends.cudnn.allow_tf32 = False
     device = torch.device(args.device)
 
     if args.topology is not None:
