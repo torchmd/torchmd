@@ -93,6 +93,7 @@ def setup(args):
 
     precision = precisionmap[args.precision]
 
+    print("Force terms: ",args.forceterms)
     ff = ForceField.create(mol, args.forcefield)
     parameters = Parameters(ff, mol, args.forceterms, precision=precision, device=device)
 
@@ -108,7 +109,6 @@ def setup(args):
     system.set_velocities(maxwell_boltzmann(parameters.masses, args.temperature, args.replicas))
 
     forces = Forces(parameters, terms=args.forceterms, external=external, cutoff=args.cutoff, rfa=args.rfa, switch_dist=args.switch_dist, exclusions=args.exclusions)
-    print("Force terms: ",forces.terms)
     return mol, system, forces
 
 def dynamics(args, mol, system, forces):
