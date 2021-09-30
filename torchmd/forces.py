@@ -38,15 +38,10 @@ class Forces:
     ):
         self.par = parameters
         if terms is None:
-            terms = (
-                "electrostatics",
-                "lj",
-                "bonds",
-                "angles",
-                "dihedrals",
-                "1-4",
-                "impropers",
+            raise RuntimeError(
+                f'Set force terms or leave empyt brackets [].\nAvaliable options: "bonds", "angles", "dihedrals", "impropers", "1-4", "electrostatics", "lj", "repulsion", "repulsioncg".'
             )
+
         self.energies = [ene.lower() for ene in terms]
         for et in self.energies:
             if et not in Forces.terms:
