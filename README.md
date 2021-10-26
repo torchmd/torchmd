@@ -17,6 +17,7 @@ Please cite:
       primaryClass={physics.chem-ph}
 }
 ```
+To reproduce the paper go to the tutorial notebook https://github.com/torchmd/torchmd-cg/blob/master/tutorial/Chignolin_Coarse-Grained_Tutorial.ipynb
 
 ## Installation
 We recommend installing TorchMD in a new python environment ideally through the Miniconda package manager.
