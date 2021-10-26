@@ -34,5 +34,8 @@ pip install torchmd
 ## Examples
 Various examples can be found in the `examples` folder on how to perform dynamics using TorchMD.
 
+## Help and comments
+Please use the github issue of this repository.
+
 ## Acknowledgements
 We would like to acknowledge funding by the Chan Zuckerberg Initiative and Acellera in support of this project. This project will be now developed in collaboration with openMM (www.openmm.org) and acemd (www.acellera.com/acemd).
