@@ -39,7 +39,7 @@ jobs:
       run: |
         conda install -y -q pytorch torchvision python=${{ matrix.python-version }} -c pytorch
         conda install -y -q --file requirements.txt -c acellera -c conda-forge
-        conda install -y -q --file extra_requirements.txt -c conda-forge
+        conda install -y -q --file requirements_tests.txt -c conda-forge
         pip install .
 
     - name: Test
