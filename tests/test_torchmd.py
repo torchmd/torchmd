@@ -71,8 +71,12 @@ def openmm_energy(prm, structure, coords, box=None, cutoff=None, switch_dist=Non
     integrator = openmm.LangevinIntegrator(
         300 * unit.kelvin, 1 / unit.picoseconds, 2 * unit.femtoseconds
     )
-    platform = openmm.Platform.getPlatformByName("CUDA")
-    properties = {"CudaPrecision": "double"}
+    try:
+        platform = openmm.Platform.getPlatformByName("CUDA")
+        properties = {"CudaPrecision": "double"}
+    except Exception:
+        platform = openmm.Platform.getPlatformByName("CPU")
+        properties = {}
     context = openmm.Context(system, integrator, platform, properties)
 
     # Run OpenMM with given coordinates
