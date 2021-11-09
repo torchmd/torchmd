@@ -322,7 +322,10 @@ class Forces:
             forces[:] = -torch.autograd.grad(
                 enesum, pos, only_inputs=True, retain_graph=True
             )[0]
-            return enesum
+            if returnDetails:
+                return pot
+            else:
+                return [torch.sum(torch.cat(list(pp.values()))) for pp in pot]
 
         if returnDetails:
             return [{k: v.cpu().item() for k, v in pp.items()} for pp in pot]

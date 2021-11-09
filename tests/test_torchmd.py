@@ -461,6 +461,57 @@ class _TestTorchMD(unittest.TestCase):
                     f"All forces. Total energy: {np.sum(list(myenergies.values())):.3f} Energy diff: {ediff:.3e} Force diff {compareForces(forces, omm_forces):.3e}"
                 )
 
+    def test_replicas(self):
+        from moleculekit.molecule import Molecule
+        from torchmd.systems import System
+        import os
+
+        n_replicas = 2
+
+        testdir = os.path.join("test-data", "prod_alanine_dipeptide_amber")
+        mol = Molecule(os.path.join(testdir, "structure.prmtop"))
+        mol.read(os.path.join(testdir, "input.coor"))
+        struct = parmed.load_file(os.path.join(testdir, "structure.prmtop"))
+        prm = parmed.amber.AmberParameterSet().from_structure(struct)
+        terms = [
+            "bonds",
+            "angles",
+            "dihedrals",
+            "impropers",
+            "1-4",
+            "electrostatics",
+            "lj",
+        ]
+        cutoff = 9
+        switch_dist = 7.5
+        rfa = True
+        precision = torch.double
+        device = "cpu"
+        ff = ForceField.create(mol, prm)
+        parameters = Parameters(ff, mol, precision=precision, device=device)
+
+        system = System(mol.numAtoms, n_replicas, precision, device)
+        system.set_positions(mol.coords)
+        system.set_box(mol.box)
+
+        forces = Forces(
+            parameters,
+            terms=terms,
+            cutoff=cutoff,
+            switch_dist=switch_dist,
+            rfa=rfa,
+        )
+        Epot = forces.compute(
+            system.pos.detach().requires_grad_(True),
+            system.box,
+            system.forces,
+            returnDetails=False,
+            explicit_forces=False,
+        )
+        assert len(Epot) == 2
+        Epot = [ee.detach().numpy() for ee in Epot]
+        assert np.abs(Epot[0] + 1722.3567) < 1e-4 and np.abs(Epot[1] + 1722.3567) < 1e-4
+
     # def test_cg(self):
     #     from torchmd.run import get_args, setup
 

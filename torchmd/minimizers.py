@@ -57,12 +57,15 @@ def minimize_pytorch_bfgs(system, forces, steps=1000):
 
     def closure(step):
         opt.zero_grad()
-        Epot = forces.compute(pos, system.box, system.forces, explicit_forces=False)
-        Epot.backward()
-        maxforce = float(torch.max(torch.norm(pos.grad, dim=1)))
-        print("{0:4d}   {1: 3.6f}   {2: 3.6f}".format(step[0], float(Epot), maxforce))
+        Epot = forces.compute(
+            pos, system.box, system.forces, explicit_forces=False, returnDetails=False
+        )
+        Etot = torch.sum(torch.cat(Epot))
+        grad = -system.forces.detach().cpu().numpy().astype(np.float64)[0]
+        maxforce = float(torch.max(torch.norm(grad, dim=1)))
+        print("{0:4d}   {1: 3.6f}   {2: 3.6f}".format(step[0], float(Etot), maxforce))
         step[0] += 1
-        return Epot
+        return Etot
 
     print("{0:4s} {1:9s}       {2:9s}".format("Iter", " Epot", " fmax"))
     step = [0]
