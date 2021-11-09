@@ -1,0 +1,75 @@
+name: Test code and publish package
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest"]
+        python-version: ["3.6", "3.7", "3.8", "3.9"]
+
+    defaults: # Needed for conda
+      run:
+        shell: bash -l {0}
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        lfs: true
+        submodules: true
+
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-update-conda: true
+        python-version: ${{ matrix.python-version }}
+
+    - name: Lint with flake8
+      run: |
+        pip install flake8
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Install test deps
+      run: |
+        conda install -y -q pytorch torchvision python=${{ matrix.python-version }} -c pytorch
+        conda install -y -q --file requirements.txt -c acellera -c conda-forge
+        conda install -y -q --file extra_requirements.txt -c conda-forge
+        pip install .
+
+    - name: Test
+      run: |
+        python tests/test_torchmd.py
+
+  deploypypi:
+    if: startsWith(github.event.ref, 'refs/tags/')
+    needs: test
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest"]
+        python-version: ["3.9"]
+
+    steps:
+    - uses: actions/checkout@v1
+
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+        activate-environment: deploy
+        python-version: ${{ matrix.python-version }}
+
+    - name: Build PyPI 📦
+      run: |
+        python -m build --sdist --outdir dist/ .
+
+    - name: Publish distribution 📦 to PyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}

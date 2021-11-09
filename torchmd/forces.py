@@ -1,23 +1,22 @@
 from scipy import constants as const
 import torch
-import yaml
 import numpy as np
 from math import pi
 
 
 class Forces:
     """
-        Parameters
-        ----------
-        cutoff : float
-            If set to a value it will only calculate LJ, electrostatics and bond energies for atoms which are closer
-            than the threshold
-        rfa : bool
-            Use with `cutoff` to enable the reaction field approximation for scaling of the electrostatics up to the cutoff.
-            Uses the value of `solventDielectric` to model everything beyond the cutoff distance as solvent with uniform
-            dielectric.
-        solventDielectric : float
-            Used together with `cutoff` and `rfa`
+    Parameters
+    ----------
+    cutoff : float
+        If set to a value it will only calculate LJ, electrostatics and bond energies for atoms which are closer
+        than the threshold
+    rfa : bool
+        Use with `cutoff` to enable the reaction field approximation for scaling of the electrostatics up to the cutoff.
+        Uses the value of `solventDielectric` to model everything beyond the cutoff distance as solvent with uniform
+        dielectric.
+    solventDielectric : float
+        Used together with `cutoff` and `rfa`
     """
 
     # 1-4 is nonbonded but we put it currently in bonded to not calculate all distances
@@ -39,7 +38,7 @@ class Forces:
         self.par = parameters
         if terms is None:
             raise RuntimeError(
-                f'Set force terms or leave empty brackets [].\nAvailable options: "bonds", "angles", "dihedrals", "impropers", "1-4", "electrostatics", "lj", "repulsion", "repulsioncg".'
+                'Set force terms or leave empty brackets [].\nAvailable options: "bonds", "angles", "dihedrals", "impropers", "1-4", "electrostatics", "lj", "repulsion", "repulsioncg".'
             )
 
         self.energies = [ene.lower() for ene in terms]
@@ -47,7 +46,7 @@ class Forces:
             if et not in Forces.terms:
                 raise ValueError(f"Force term {et} is not implemented.")
 
-        if "1-4" in self.energies and not "dihedrals" in self.energies:
+        if "1-4" in self.energies and "dihedrals" not in self.energies:
             raise RuntimeError(
                 "You cannot enable 1-4 interactions without enabling dihedrals"
             )

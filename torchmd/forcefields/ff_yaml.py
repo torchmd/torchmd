@@ -7,7 +7,8 @@ import yaml
 class YamlForcefield(_ForceFieldBase):
     def __init__(self, mol, prm):
         self.mol = mol
-        self.prm = yaml.load(open(prm), Loader=yaml.FullLoader)
+        with open(prm, "r") as f:
+            self.prm = yaml.load(f, Loader=yaml.FullLoader)
 
     def _get_x_variants(self, atomtypes):
         from itertools import product
@@ -52,14 +53,14 @@ class YamlForcefield(_ForceFieldBase):
         return np.unique(self.prm["atomtypes"])
 
     def get_charge(self, at):
-        params = self.get_parameters("electrostatics", [at,])
+        params = self.get_parameters("electrostatics", [at])
         return params["charge"]
 
     def get_mass(self, at):
         return self.prm["masses"][at]
 
     def get_LJ(self, at):
-        params = self.get_parameters("lj", [at,])
+        params = self.get_parameters("lj", [at])
         return params["sigma"], params["epsilon"]
 
     def get_bond(self, at1, at2):
@@ -86,8 +87,8 @@ class YamlForcefield(_ForceFieldBase):
         for term in params["terms"]:
             terms.append([term["phi_k"], radians(term["phase"]), term["per"]])
 
-        lj1 = self.get_parameters("lj", [at1,])
-        lj4 = self.get_parameters("lj", [at4,])
+        lj1 = self.get_parameters("lj", [at1])
+        lj4 = self.get_parameters("lj", [at4])
         return (
             params["scnb"] if "scnb" in params else 1,
             params["scee"] if "scee" in params else 1,

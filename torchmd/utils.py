@@ -1,13 +1,9 @@
-import glob
 import csv
 import json
 import os
 import time
 import argparse
-import torch
 import yaml
-import sys
-import numpy as np
 
 
 class LogWriter(object):
@@ -68,7 +64,8 @@ def save_argparse(args, filename, exclude=None):
         args = args.__dict__.copy()
         for exl in exclude:
             del args[exl]
-        yaml.dump(args, open(filename, "w"))
+        with open(filename, "w") as fout:
+            yaml.dump(args, fout)
     else:
         with open(filename, "w") as f:
             for k, v in args.__dict__.items():

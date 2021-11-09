@@ -3,15 +3,13 @@
 # Distributed under HTMD Software License Agreement
 # No redistribution in whole or part
 #
-from moleculekit.molecule import Molecule
 import parmed
-from glob import glob
 import numpy as np
-import os
 from torchmd.forcefields.forcefield import ForceField
 from torchmd.parameters import Parameters
 from torchmd.forces import Forces
 import torch
+import unittest
 
 
 def disableDispersionCorrection(system):
@@ -19,7 +17,7 @@ def disableDispersionCorrection(system):
     # The long range dispersion correction is primarily useful when running simulations at constant pressure, since it
     # produces a more accurate variation in system energy with respect to volume.
     # So I will disable it to avoid implementing it for now
-    from simtk.openmm import NonbondedForce
+    from openmm import NonbondedForce
 
     for f in system.getForces():
         if isinstance(f, NonbondedForce):
@@ -27,10 +25,9 @@ def disableDispersionCorrection(system):
 
 
 def openmm_energy(prm, structure, coords, box=None, cutoff=None, switch_dist=None):
-    import parmed
-    from simtk import unit
-    from simtk import openmm
-    from simtk.openmm import app
+    from openmm import unit
+    from openmm import app
+    import openmm
     from parmed.amber import AmberParm
 
     if box is not None and not np.all(box == 0):
@@ -189,10 +186,11 @@ def keepForcesAmber(
 
 
 def compareEnergies(my_ene, omm_energies, verbose=False, abstol=1e-4, compare="all"):
+    fmt = "{:.3E} {:.3E} {:.3E}"
     if compare == "all" or compare == "angles":
         d = my_ene["angles"] - omm_energies["angle"]
         if verbose:
-            print("Angle diff:", d, my_ene["angles"], omm_energies["angle"])
+            print("Angle diff:", fmt.format(d, my_ene["angles"], omm_energies["angle"]))
         if abs(d) > abstol:
             raise RuntimeError("Too high difference in angle energies:", d)
     if compare == "all" or compare == "bonds":
@@ -257,10 +255,10 @@ def fixParameters(parameterfile, outfile=None):
     else:
         f = open(outfile, "w")
 
-    for l in lines:
-        l = l.replace("!MASS", "MASS")
-        l = l.replace("!ATOMS", "ATOMS")
-        f.write(l)
+    for ll in lines:
+        ll = ll.replace("!MASS", "MASS")
+        ll = ll.replace("!ATOMS", "ATOMS")
+        f.write(ll)
 
     f.close()
 
@@ -275,8 +273,6 @@ def getTorchMDSystem(mol, device, precision):
     system.set_box(mol.box)
     return system
 
-
-import unittest
 
 forcesTMD = ["angles", "bonds", "dihedrals", "lj", "electrostatics"]
 forcesOMM = [
@@ -303,6 +299,15 @@ class _TestTorchMD(unittest.TestCase):
         # for d in [
         #     "test-data/prod_alanine_dipeptide_amber/",
         # ]:
+        terms = [
+            "bonds",
+            "angles",
+            "dihedrals",
+            "impropers",
+            "1-4",
+            "electrostatics",
+            "lj",
+        ]
         for d in glob(os.path.join("test-data", "*", "")):
             with self.subTest(system=d):
                 print("\nRunning test:", d)
@@ -373,14 +378,10 @@ class _TestTorchMD(unittest.TestCase):
                     if len(psfFile):
                         struct = parmed.charmm.CharmmPsfFile(psfFile[0])
                         prm = parmed.charmm.CharmmParameterSet(*prmFiles)
-                        prm_org = parmed.charmm.CharmmParameterSet(*prmFiles)
                         keepForces(prm, struct, mol, forces=forceOMM)
                     elif len(prmtopFile):
                         struct = parmed.load_file(prmtopFile[0])
                         prm = parmed.amber.AmberParameterSet().from_structure(struct)
-                        prm_org = parmed.amber.AmberParameterSet().from_structure(
-                            struct
-                        )
                         keepForces(prm, struct, mol, forces=forceOMM)
                         keepForcesAmber(struct, mol, forces=forceOMM)
 
@@ -392,7 +393,11 @@ class _TestTorchMD(unittest.TestCase):
                     parameters = Parameters(ff, mol, precision=precision, device=device)
                     system = getTorchMDSystem(mol, device, precision)
                     forces = Forces(
-                        parameters, cutoff=cutoff, switch_dist=switch_dist, rfa=rfa,
+                        parameters,
+                        terms=terms,
+                        cutoff=cutoff,
+                        switch_dist=switch_dist,
+                        rfa=rfa,
                     )
                     energies = forces.compute(
                         system.pos, system.box, system.forces, returnDetails=True
@@ -415,12 +420,7 @@ class _TestTorchMD(unittest.TestCase):
                         verbose=False,
                     )
                     print(
-                        "  ",
-                        forceOMM,
-                        "Energy diff:",
-                        ediff,
-                        "Force diff:",
-                        compareForces(forces, omm_forces),
+                        f"  {forceOMM} Energy diff: {ediff:.3e} Force diff: {compareForces(forces, omm_forces):.3e}"
                     )
 
                 if len(psfFile):
@@ -437,7 +437,11 @@ class _TestTorchMD(unittest.TestCase):
                 parameters = Parameters(ff, mol, precision=precision, device=device)
                 system = getTorchMDSystem(mol, device, precision)
                 forces = Forces(
-                    parameters, cutoff=cutoff, switch_dist=switch_dist, rfa=rfa,
+                    parameters,
+                    terms=terms,
+                    cutoff=cutoff,
+                    switch_dist=switch_dist,
+                    rfa=rfa,
                 )
                 myenergies = forces.compute(
                     system.pos, system.box, system.forces, returnDetails=True
@@ -454,41 +458,36 @@ class _TestTorchMD(unittest.TestCase):
                 )
                 ediff = compareEnergies(myenergies, omm_energies, abstol=abstol)
                 print(
-                    "All forces. Total energy:",
-                    np.sum(list(myenergies.values())),
-                    "Energy diff:",
-                    ediff,
-                    "Force diff:",
-                    compareForces(forces, omm_forces),
+                    f"All forces. Total energy: {np.sum(list(myenergies.values())):.3f} Energy diff: {ediff:.3e} Force diff {compareForces(forces, omm_forces):.3e}"
                 )
 
-    def test_cg(self):
-        from torchmd.run import get_args, setup
+    # def test_cg(self):
+    #     from torchmd.run import get_args, setup
 
-        args = get_args(["--conf", "tests/cg/conf.yaml"])
-        mol, system, forces = setup(args)
+    #     args = get_args(["--conf", "tests/cg/conf.yaml"])
+    #     _, system, forces = setup(args)
 
-        reference = [
-            {
-                "bonds": 6.054834888544265,
-                "angles": 2.4312314931533345,
-                "repulsioncg": 3.9667452882420924,
-                "external": -76.44873809814453,
-            },
-            {
-                "bonds": 6.054834888544265,
-                "angles": 2.4312314931533345,
-                "repulsioncg": 3.9667452882420924,
-                "external": -76.44874572753906,
-            },
-        ]
-        Epot = forces.compute(system.pos, system.box, system.forces, returnDetails=True)
-        for i in range(len(reference)):
-            for term in reference[i]:
-                if abs(Epot[i][term] - reference[i][term]) > 1e-5:
-                    raise RuntimeError(
-                        f"Difference in energies detected for term {term}: {Epot[i][term]} vs reference {reference[i][term]}"
-                    )
+    #     reference = [
+    #         {
+    #             "bonds": 6.054834888544265,
+    #             "angles": 2.4312314931533345,
+    #             "repulsioncg": 3.9667452882420924,
+    #             "external": -76.44873809814453,
+    #         },
+    #         {
+    #             "bonds": 6.054834888544265,
+    #             "angles": 2.4312314931533345,
+    #             "repulsioncg": 3.9667452882420924,
+    #             "external": -76.44874572753906,
+    #         },
+    #     ]
+    #     Epot = forces.compute(system.pos, system.box, system.forces, returnDetails=True)
+    #     for i in range(len(reference)):
+    #         for term in reference[i]:
+    #             if abs(Epot[i][term] - reference[i][term]) > 1e-5:
+    #                 raise RuntimeError(
+    #                     f"Difference in energies detected for term {term}: {Epot[i][term]} vs reference {reference[i][term]}"
+    #                 )
 
 
 if __name__ == "__main__":

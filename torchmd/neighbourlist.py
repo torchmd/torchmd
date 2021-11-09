@@ -31,17 +31,17 @@ def discretize_box(box, subcell_size):
     return xbins, ybins, zbins, cellneighbours
 
 
-def neighbour_list(pos, box, subcell_size):
-    nsystems = coordinates.shape[0]
+# def neighbour_list(pos, box, subcell_size):
+#     nsystems = coordinates.shape[0]
 
-    for s in range(nsystems):
-        spos = pos[s]
-        sbox = box[s]
+#     for s in range(nsystems):
+#         spos = pos[s]
+#         sbox = box[s]
 
-        xbins, ybins, zbins = discretize_box(sbox, subcell_size)
+#         xbins, ybins, zbins = discretize_box(sbox, subcell_size)
 
-        xidx = torch.bucketize(spos[:, 0], xbins, out_int32=True)
-        yidx = torch.bucketize(spos[:, 1], ybins, out_int32=True)
-        zidx = torch.bucketize(spos[:, 2], zbins, out_int32=True)
+#         xidx = torch.bucketize(spos[:, 0], xbins, out_int32=True)
+#         yidx = torch.bucketize(spos[:, 1], ybins, out_int32=True)
+#         zidx = torch.bucketize(spos[:, 2], zbins, out_int32=True)
 
-        binidx = torch.stack((xidx, yidx, zidx)).T
+#         binidx = torch.stack((xidx, yidx, zidx)).T
