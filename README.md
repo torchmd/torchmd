@@ -1,4 +1,4 @@
-f# TorchMD
+# TorchMD
 
 ## About
 TorchMD intends to provide a simple to use API for performing molecular dynamics using PyTorch. This enables researchers to more rapidly do research in force-field development as well as integrate seamlessly neural network potentials into the dynamics, with the simplicity and power of PyTorch.
