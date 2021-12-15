@@ -1,4 +1,4 @@
-# TorchMD
+f# TorchMD
 
 ## About
 TorchMD intends to provide a simple to use API for performing molecular dynamics using PyTorch. This enables researchers to more rapidly do research in force-field development as well as integrate seamlessly neural network potentials into the dynamics, with the simplicity and power of PyTorch.
@@ -18,6 +18,10 @@ Please cite:
 }
 ```
 To reproduce the paper go to the tutorial notebook https://github.com/torchmd/torchmd-cg/blob/master/tutorial/Chignolin_Coarse-Grained_Tutorial.ipynb
+
+## License
+
+Note. All the code in this repository is MIT, however we use several file format readers that are taken from Moleculekit which has a free open source non-for-profit, research license. This is mainly in torchmd/run.py. Moleculekit is installed automatically being in the requirement file. Check out Moleculekit here: https://github.com/Acellera/moleculekit
 
 ## Installation
 We recommend installing TorchMD in a new python environment ideally through the Miniconda package manager.
