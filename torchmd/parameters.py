@@ -107,7 +107,7 @@ class Parameters:
         self.mapped_atom_types = torch.tensor(indexes)
         self.charges = torch.tensor(mol.charge.astype(np.float64))
         self.masses = self.make_masses(ff, mol.atomtype)
-        if "lj" in terms:
+        if "lj" in terms or "LJ" in terms:
             self.A, self.B = self.make_lj(ff, uqatomtypes)
         if "bonds" in terms and len(mol.bonds):
             uqbonds = np.unique([sorted(bb) for bb in mol.bonds], axis=0)
