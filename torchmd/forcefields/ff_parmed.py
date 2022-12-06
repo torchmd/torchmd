@@ -4,7 +4,7 @@ import numpy as np
 
 
 def load_parmed_parameters(fname):
-    """ Convenience method for reading parameter files with parmed
+    """Convenience method for reading parameter files with parmed
 
     Parameters
     ----------
