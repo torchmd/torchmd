@@ -5,7 +5,12 @@ import numpy as np
 
 class Parameters:
     def __init__(
-        self, ff, mol, terms=None, precision=torch.float, device="cpu",
+        self,
+        ff,
+        mol,
+        terms=None,
+        precision=torch.float,
+        device="cpu",
     ):
         self.A = None
         self.B = None
@@ -32,10 +37,12 @@ class Parameters:
         self.to_(device)
 
     def to_(self, device):
-        self.A = self.A.to(device)
-        self.B = self.B.to(device)
         self.charges = self.charges.to(device)
         self.masses = self.masses.to(device)
+        if self.A is not None:
+            self.A = self.A.to(device)
+        if self.B is not None:
+            self.B = self.B.to(device)
         if self.bonds is not None:
             self.bonds = self.bonds.to(device)
             self.bond_params = self.bond_params.to(device)
@@ -59,10 +66,12 @@ class Parameters:
         self.device = device
 
     def precision_(self, precision):
-        self.A = self.A.type(precision)
-        self.B = self.B.type(precision)
         self.charges = self.charges.type(precision)
         self.masses = self.masses.type(precision)
+        if self.A is not None:
+            self.A = self.A.type(precision)
+        if self.B is not None:
+            self.B = self.B.type(precision)
         if self.bonds is not None:
             self.bond_params = self.bond_params.type(precision)
         if self.angles is not None:
@@ -103,7 +112,8 @@ class Parameters:
         self.mapped_atom_types = torch.tensor(indexes)
         self.charges = torch.tensor(mol.charge.astype(np.float64))
         self.masses = self.make_masses(ff, mol.atomtype)
-        self.A, self.B = self.make_lj(ff, uqatomtypes)
+        if "lj" in terms or "LJ" in terms:
+            self.A, self.B = self.make_lj(ff, uqatomtypes)
         if "bonds" in terms and len(mol.bonds):
             uqbonds = np.unique([sorted(bb) for bb in mol.bonds], axis=0)
             self.bonds = torch.tensor(uqbonds.astype(np.int64))
@@ -220,7 +230,7 @@ class Parameters:
             # Lorentz - Berthelot combination rule
             sig = 0.5 * (lj1_s14 + lj4_s14)
             eps = sqrt(lj1_e14 * lj4_e14)
-            s6 = sig ** 6
+            s6 = sig**6
             s12 = s6 * s6
             A = eps * 4 * s12
             B = eps * 4 * s6
@@ -232,7 +242,7 @@ def calculate_AB(sigma, epsilon):
     # Lorentz - Berthelot combination rule
     sigma_table = 0.5 * (sigma + sigma[:, None])
     eps_table = np.sqrt(epsilon * epsilon[:, None])
-    sigma_table_6 = sigma_table ** 6
+    sigma_table_6 = sigma_table**6
     sigma_table_12 = sigma_table_6 * sigma_table_6
     A = eps_table * 4 * sigma_table_12
     B = eps_table * 4 * sigma_table_6
