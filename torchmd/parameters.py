@@ -30,7 +30,7 @@ class Parameters:
 
         self.natoms = mol.numAtoms
         if terms is None:
-            terms = ("bonds", "angles", "dihedrals", "impropers", "1-4")
+            terms = ("bonds", "angles", "dihedrals", "impropers", "1-4", "lj")
         terms = [term.lower() for term in terms]
         self.build_parameters(ff, mol, terms)
         self.precision_(precision)
