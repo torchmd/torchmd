@@ -21,6 +21,7 @@ class npzMolecule:
         self.numAtoms = len(self.z)
         self.masses = self.make_masses_npz(self.z)
         self.atomtype = self.get_atom_types(self.z)
+        self.embedding = self.z.tolist()
         
         if "charges" in self.data.files:
             self.charge = torch.from_numpy(self.data["charges"])

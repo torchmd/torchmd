@@ -167,6 +167,7 @@ def setup(args):
         )
     elif args.npz_file is not None:
         mol = npzMolecule(args.npz_file)
+        batch_comp = True
 
     if args.coordinates is not None:
         mol.read(args.coordinates)
@@ -185,7 +186,12 @@ def setup(args):
     external = None
     if args.external is not None:
         externalmodule = importlib.import_module(args.external["module"])
-        embeddings = torch.tensor(args.external["embeddings"]).repeat(args.replicas, 1)
+        if batch_comp:
+            embeddings = torch.tensor(mol.embedding).repeat(args.replicas, 1)
+        else:
+            embeddings = torch.tensor(args.external["embeddings"]).repeat(
+                args.replicas, 1
+            )
         external = externalmodule.External(args.external["file"], embeddings, device)
 
     system = System(mol.numAtoms, args.replicas, precision, device)
