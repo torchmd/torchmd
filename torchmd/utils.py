@@ -199,24 +199,21 @@ elements = [
 ]
 
 
-def converter_xyz_output(input_file, z, output_file):
-    if isinstance(z, str):
-        # it should be the path of the npz file in wich the embedding for the elements is saved
-        mol_elements = np.load(z)["z"]
-    else:
-        # or it gets the data from the mol.z attribute
-        mol_elements = z
+def converter_xyz_output(input_file, output_file, z=None):
+    # it gets the embedding data from the mol.z attribute
+    mol_elements = z
     npy_file = np.load(input_file)
     Nsteps = npy_file.shape[2]
     Nats = npy_file.shape[0]
     for i in range(Nsteps):
         with open(output_file, "a") as f:
-            f.write(str(Nats))
+            if "forces" not in input_file:
+                f.write(str(Nats))
             f.write("\n\n")
-        with open(output_file, "a") as f:
             for j in range(Nats):
-                f.write(elements[mol_elements[j]])
-                f.write(" ")
+                if "forces" not in input_file:
+                    f.write(elements[mol_elements[j]])
+                    f.write(" ")
                 for k in range(3):
                     f.write(str(npy_file[j, k, i]))
                     f.write(" ")

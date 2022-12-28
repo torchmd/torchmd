@@ -231,7 +231,9 @@ def dynamics(args, mol, system, forces):
     wrapper = Wrapper(mol.numAtoms, mol.bonds if len(mol.bonds) else None, device)
 
     outputname, outputext = os.path.splitext(args.output)
+    # if we want to mantain the forces we could use a dict for trajs to store forces and pos as values and str(k) as key
     trajs = []
+    trajs_forces = []
     logs = []
     for k in range(args.replicas):
         logs.append(
@@ -242,25 +244,31 @@ def dynamics(args, mol, system, forces):
             )
         )
         trajs.append([])
+        trajs_forces.append([])
 
     if args.minimize != None:
         minimize_bfgs(system, forces, steps=args.minimize)
 
     iterator = tqdm(range(1, int(args.steps / args.output_period) + 1))
     Epot = forces.compute(system.pos, system.box, system.forces)
+
     for i in iterator:
         # viewFrame(mol, system.pos, system.forces)
-        Ekin, Epot, T = integrator.step(niter=args.output_period)
+        Ekin, Epot, T, currforces = integrator.step(niter=args.output_period)
         wrapper.wrap(system.pos, system.box)
         currpos = system.pos.detach().cpu().numpy().copy()
         for k in range(args.replicas):
             trajs[k].append(currpos[k])
+            trajs_forces[k].append(currforces[k])
             if (i * args.output_period) % args.save_period == 0:
                 np.save(
                     os.path.join(args.log_dir, f"{outputname}_{k}{outputext}"),
                     np.stack(trajs[k], axis=2),
                 )  # ideally we want to append
-
+                np.save(
+                    os.path.join(args.log_dir, f"{outputname}_forces_{k}{outputext}"),
+                    np.stack(trajs_forces[k], axis=2),
+                )
             logs[k].write_row(
                 {
                     "iter": i * args.output_period,
@@ -271,11 +279,22 @@ def dynamics(args, mol, system, forces):
                     "T": T[k],
                 }
             )
-        # new for on replicas because we start from .npy file saved in the previous step
+
+    # new for on replicas because we start from .npy file saved in the previous step
     for k in range(args.replicas):
         npy_name = os.path.join(args.log_dir, args.output + f"_{k}.npy")
         xyz_name = os.path.join(args.log_dir, args.output + f"_{k}.xyz")
-        converter_xyz_output(npy_name, mol.z, xyz_name)
+        converter_xyz_output(npy_name, xyz_name, mol.z)
+        npy_name_forces = os.path.join(args.log_dir, args.output + f"_forces_{k}.npy")
+        xyz_name_forces = os.path.join(args.log_dir, args.output + f"_forces_{k}.xyz")
+        # for the forces converter you don't need to pass the z
+        converter_xyz_output(npy_name_forces, xyz_name_forces)
+        # get a xyz file with forces and pos
+        pos_forces_output = os.path.join(
+            args.log_dir, args.output + f"_pos_forces_{k}.xyz"
+        )
+        command = f"paste {xyz_name}  {xyz_name_forces} > {pos_forces_output}"
+        os.system(command)
 
 
 if __name__ == "__main__":
