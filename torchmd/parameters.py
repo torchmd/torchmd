@@ -63,6 +63,8 @@ class Parameters:
             termparams = self.improper_params[0]
             termparams["idx"] = termparams["idx"].to(device)
             termparams["params"] = termparams["params"].to(device)
+        if self.mapped_atom_types is not None:
+            self.mapped_atom_types = self.mapped_atom_types.to(device)
         self.device = device
 
     def precision_(self, precision):
