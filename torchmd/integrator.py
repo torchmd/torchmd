@@ -72,4 +72,5 @@ class Integrator:
 
         Ekin = np.array([v.item() for v in kinetic_energy(masses, s.vel)])
         T = kinetic_to_temp(Ekin, natoms)
+        forces_ = s.forces.detach().cpu().numpy().copy()
         return Ekin, pot, T
