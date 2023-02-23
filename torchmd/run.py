@@ -31,106 +31,38 @@ def viewFrame(mol, pos, forces):
     viewForces(mol, forces[0].cpu().detach().numpy()[:, :, None] * 0.01)
 
 
+# fmt: off
 def get_args(arguments=None):
-    parser = argparse.ArgumentParser(description="TorchMD", prefix_chars="--")
-    parser.add_argument(
-        "--conf",
-        type=open,
-        action=LoadFromFile,
-        help="Use a configuration file, e.g. python run.py --conf input.conf",
-    )
-    parser.add_argument("--timestep", default=1, type=float, help="Timestep in fs")
-    parser.add_argument(
-        "--temperature",
-        default=300,
-        type=float,
-        help="Assign velocity from initial temperature in K",
-    )
-    parser.add_argument(
-        "--langevin-temperature",
-        default=0,
-        type=float,
-        help="Temperature in K of the thermostat",
-    )
-    parser.add_argument(
-        "--langevin-gamma", default=0.1, type=float, help="Langevin relaxation ps^-1"
-    )
-    parser.add_argument("--device", default="cpu", help='Type of device, e.g. "cuda:1"')
-    parser.add_argument("--structure", default=None, help="Deprecated: Input PDB")
-    parser.add_argument("--topology", default=None, type=str, help="Input topology")
-    parser.add_argument(
-        "--coordinates", default=None, type=str, help="Input coordinates"
-    )
-    parser.add_argument(
-        "--npz_file", default=None, type=str, help="Input file.npz with coord and z"
-    )
-    parser.add_argument(
-        "--forcefield",
-        default="tests/argon/argon_forcefield.yaml",
-        help="Forcefield .yaml file",
-    )
-    parser.add_argument("--seed", type=int, default=1, help="random seed (default: 1)")
-    parser.add_argument(
-        "--output-period",
-        type=int,
-        default=10,
-        help="Store trajectory and print monitor.csv every period",
-    )
-    parser.add_argument(
-        "--save-period",
-        type=int,
-        default=0,
-        help="Dump trajectory to npy file. By default 10 times output-period.",
-    )
-    parser.add_argument(
-        "--steps", type=int, default=10000, help="Total number of simulation steps"
-    )
-    parser.add_argument("--log-dir", default="./", help="Log directory")
-    parser.add_argument(
-        "--output", default="output", help="Output filename for trajectory"
-    )
-    parser.add_argument(
-        "--forceterms",
-        nargs="+",
-        default="LJ",
-        help="Forceterms to include, e.g. --forceterms Bonds LJ",
-    )
-    parser.add_argument(
-        "--cutoff", default=None, type=float, help="LJ/Elec/Bond cutoff"
-    )
-    parser.add_argument(
-        "--switch_dist", default=None, type=float, help="Switching distance for LJ"
-    )
-    parser.add_argument(
-        "--precision", default="single", type=str, help="LJ/Elec/Bond cutoff"
-    )
-    parser.add_argument(
-        "--external", default=None, type=dict, help="External calculator config"
-    )
-    parser.add_argument(
-        "--rfa",
-        default=False,
-        action="store_true",
-        help="Enable reaction field approximation",
-    )
-    parser.add_argument(
-        "--replicas", type=int, default=1, help="Number of different replicas to run"
-    )
-    parser.add_argument(
-        "--extended_system", default=None, type=float, help="xsc file for box size"
-    )
-    parser.add_argument(
-        "--minimize",
-        default=None,
-        type=int,
-        help="Minimize the system for `minimize` steps",
-    )
-    parser.add_argument(
-        "--exclusions",
-        default=("bonds", "angles", "1-4"),
-        type=tuple,
-        help="exclusions for the LJ or repulsionCG term",
-    )
+    parser = argparse.ArgumentParser(description='TorchMD',prefix_chars='--')
+    parser.add_argument('--conf', type=open, action=LoadFromFile, help='Use a configuration file, e.g. python run.py --conf input.conf')
+    parser.add_argument('--timestep', default=1, type=float, help='Timestep in fs')
+    parser.add_argument('--temperature',  default=300,type=float, help='Assign velocity from initial temperature in K')
+    parser.add_argument('--langevin-temperature',  default=0,type=float, help='Temperature in K of the thermostat')
+    parser.add_argument('--langevin-gamma',  default=0.1,type=float, help='Langevin relaxation ps^-1')
+    parser.add_argument('--device', default='cpu', help='Type of device, e.g. "cuda:1"')
+    parser.add_argument('--structure', default=None, help='Deprecated: Input PDB')
+    parser.add_argument('--topology', default=None, type=str, help='Input topology')
+    parser.add_argument('--coordinates', default=None, type=str, help='Input coordinates')
+    parser.add_argument("--npz_file", default=None, type=str, help="Input file.npz with coord and z")
+    parser.add_argument('--forcefield', default="tests/argon/argon_forcefield.yaml", help='Forcefield .yaml file')
+    parser.add_argument('--seed',type=int,default=1,help='random seed (default: 1)')
+    parser.add_argument('--output-period',type=int,default=10,help='Store trajectory and print monitor.csv every period')
+    parser.add_argument('--save-period',type=int,default=0,help='Dump trajectory to npy file. By default 10 times output-period.')
+    parser.add_argument('--steps',type=int,default=10000,help='Total number of simulation steps')
+    parser.add_argument('--log-dir', default='./', help='Log directory')
+    parser.add_argument('--output', default='output', help='Output filename for trajectory')
+    parser.add_argument('--forceterms', nargs='+', default="LJ", help='Forceterms to include, e.g. --forceterms Bonds LJ')
+    parser.add_argument('--cutoff', default=None, type=float, help='LJ/Elec/Bond cutoff')
+    parser.add_argument('--switch_dist', default=None, type=float, help='Switching distance for LJ')
+    parser.add_argument('--precision', default='single', type=str, help='LJ/Elec/Bond cutoff')
+    parser.add_argument('--external', default=None, type=dict, help='External calculator config')
+    parser.add_argument('--rfa', default=False, action='store_true', help='Enable reaction field approximation')
+    parser.add_argument('--replicas', type=int, default=1, help='Number of different replicas to run')
+    parser.add_argument('--extended_system', default=None, type=float, help='xsc file for box size')
+    parser.add_argument('--minimize', default=None, type=int, help='Minimize the system for `minimize` steps')
+    parser.add_argument('--exclusions', default=('bonds', 'angles', '1-4'), type=tuple, help='exclusions for the LJ or repulsionCG term')
+   
+#fmt:on
 
     args = parser.parse_args(args=arguments)
     os.makedirs(args.log_dir, exist_ok=True)
@@ -231,9 +163,7 @@ def dynamics(args, mol, system, forces):
     wrapper = Wrapper(mol.numAtoms, mol.bonds if len(mol.bonds) else None, device)
 
     outputname, outputext = os.path.splitext(args.output)
-    # if we want to mantain the forces we could use a dict for trajs to store forces and pos as values and str(k) as key
     trajs = []
-    trajs_forces = []
     logs = []
     for k in range(args.replicas):
         logs.append(
@@ -244,7 +174,6 @@ def dynamics(args, mol, system, forces):
             )
         )
         trajs.append([])
-        trajs_forces.append([])
 
     if args.minimize != None:
         minimize_bfgs(system, forces, steps=args.minimize)
@@ -254,21 +183,16 @@ def dynamics(args, mol, system, forces):
 
     for i in iterator:
         # viewFrame(mol, system.pos, system.forces)
-        Ekin, Epot, T, currforces = integrator.step(niter=args.output_period)
+        Ekin, Epot, T = integrator.step(niter=args.output_period)
         wrapper.wrap(system.pos, system.box)
         currpos = system.pos.detach().cpu().numpy().copy()
         for k in range(args.replicas):
             trajs[k].append(currpos[k])
-            trajs_forces[k].append(currforces[k])
             if (i * args.output_period) % args.save_period == 0:
                 np.save(
                     os.path.join(args.log_dir, f"{outputname}_{k}{outputext}"),
                     np.stack(trajs[k], axis=2),
-                )  # ideally we want to append
-                np.save(
-                    os.path.join(args.log_dir, f"{outputname}_forces_{k}{outputext}"),
-                    np.stack(trajs_forces[k], axis=2),
-                )
+                ) # ideally we want to append
             logs[k].write_row(
                 {
                     "iter": i * args.output_period,
@@ -285,18 +209,7 @@ def dynamics(args, mol, system, forces):
         npy_name = os.path.join(args.log_dir, args.output + f"_{k}.npy")
         xyz_name = os.path.join(args.log_dir, args.output + f"_{k}.xyz")
         converter_xyz_output(npy_name, xyz_name, mol.z)
-        npy_name_forces = os.path.join(args.log_dir, args.output + f"_forces_{k}.npy")
-        xyz_name_forces = os.path.join(args.log_dir, args.output + f"_forces_{k}.xyz")
-        # for the forces converter you don't need to pass the z
-        converter_xyz_output(npy_name_forces, xyz_name_forces)
-        # get a xyz file with forces and pos
-        pos_forces_output = os.path.join(
-            args.log_dir, args.output + f"_pos_forces_{k}.xyz"
-        )
-        command = f"paste {xyz_name}  {xyz_name_forces} > {pos_forces_output}"
-        os.system(command)
-
-
+        
 if __name__ == "__main__":
     args = get_args()
     mol, system, forces = setup(args)
