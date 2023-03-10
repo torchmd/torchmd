@@ -38,9 +38,7 @@ jobs:
     - name: Install test deps
       run: |
         conda install -y -q pytorch torchvision python=${{ matrix.python-version }} -c pytorch
-        conda install -y -q --file requirements.txt -c acellera -c conda-forge
-        conda install -y -q --file requirements_tests.txt -c conda-forge
-        pip install .
+        pip install .[test]
 
     - name: Test
       run: |
