@@ -38,6 +38,7 @@ jobs:
     - name: Install test deps
       run: |
         conda install -y -q pytorch torchvision python=${{ matrix.python-version }} -c pytorch
+        pip install -U pip setuptools wheel
         pip install -e ."[test]"
 
     - name: Test
