@@ -1,7 +1,3 @@
-[build-system]
-requires = ["flit_core >=3.2,<4"]
-build-backend = "flit_core.buildapi"
-
 [project]
 name = "torchmd"
 dynamic = ["version"]
@@ -38,3 +34,15 @@ test = [
     "parmed",
     "natsort"
 ]
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "torchmd/_version.py"
+versionfile_build = "torchmd/_version.py"
+tag_prefix = ""
+parentdir_prefix = "torchmd-"
+
+[build-system]
+requires = ["setuptools", "toml", "versioneer[toml]==0.28"]
+build-backend = "setuptools.build_meta"
