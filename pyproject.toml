@@ -28,13 +28,6 @@ repository = "https://github.com/torchmd/torchmd/"
 [tool.setuptools.packages.find]
 include = ["torchmd*"]
 
-[project.optional-dependencies]
-test = [
-    "openmm",
-    "parmed",
-    "natsort"
-]
-
 [tool.versioneer]
 VCS = "git"
 style = "pep440"

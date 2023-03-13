@@ -38,8 +38,9 @@ jobs:
       - name: Install test deps
         run: |
           conda install -y -q pytorch torchvision python=${{ matrix.python-version }} -c pytorch
+          conda install -y -q openmm parmed natsort -c conda-forge
           pip install -U pip setuptools wheel
-          pip install -e ."[test]"
+          pip install .
 
       - name: Test
         run: |
