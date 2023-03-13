@@ -113,7 +113,10 @@ class Parameters:
 
         self.mapped_atom_types = torch.tensor(indexes)
         self.charges = torch.tensor(mol.charge.astype(np.float64))
-        self.masses = self.make_masses(ff, mol.atomtype)
+        if mol.masses is not None and isinstance(mol.masses, torch.Tensor):
+            self.masses = mol.masses
+        else:
+            self.masses = self.make_masses(ff, mol.atomtype)
         if "lj" in terms or "LJ" in terms:
             self.A, self.B = self.make_lj(ff, uqatomtypes)
         if "bonds" in terms and len(mol.bonds):
