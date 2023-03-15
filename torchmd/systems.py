@@ -46,8 +46,8 @@ class System:
         if self.nreplicas > 1 and atom_pos.shape[0] != self.nreplicas:
             atom_pos = np.repeat(atom_pos[0][None, :], self.nreplicas, axis=0)
 
-        self.pos[:] = (
-            atom_pos.to(dtype=self.pos.dtype, device=self.pos.device).clone().detach()
+        self.pos[:] = torch.tensor(
+            atom_pos, dtype=self.pos.dtype, device=self.pos.device
         )
 
     def set_velocities(self, vel):
