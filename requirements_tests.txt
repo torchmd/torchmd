@@ -1,3 +1,0 @@
-openmm
-parmed
-natsort

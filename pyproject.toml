@@ -1,0 +1,41 @@
+[project]
+name = "torchmd"
+dynamic = ["version"]
+description = "TorchMD. Molecular dynamics with pytorch"
+authors = [
+    { name = "Acellera", email = "info@acellera.com" }
+]
+readme = "README.md"
+license = {file = "LICENSE.md"}
+classifiers = [
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+    "pyyaml",
+    "tqdm",
+    "moleculekit",
+    "pandas",
+    "networkx",
+    "scipy" # Only needed for minimizers
+]
+
+[project.urls]
+homepage = "https://github.com/torchmd/torchmd/"
+repository = "https://github.com/torchmd/torchmd/"
+
+[tool.setuptools.packages.find]
+include = ["torchmd*"]
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "torchmd/_version.py"
+versionfile_build = "torchmd/_version.py"
+tag_prefix = ""
+parentdir_prefix = "torchmd-"
+
+[build-system]
+requires = ["setuptools", "toml", "versioneer[toml]==0.28"]
+build-backend = "setuptools.build_meta"
