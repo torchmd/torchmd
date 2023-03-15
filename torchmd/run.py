@@ -128,7 +128,9 @@ def get_args(arguments=None):
         type=tuple,
         help="exclusions for the LJ or repulsionCG term",
     )
-    parser.add_argument("--npz_file", default=None, type=str, help="Input file.npz with coord and z")
+    parser.add_argument(
+        "--npz_file", default=None, type=str, help="Input file.npz with coord and z"
+    )
 
     args = parser.parse_args(args=arguments)
     os.makedirs(args.log_dir, exist_ok=True)
@@ -276,7 +278,8 @@ def dynamics(args, mol, system, forces):
         npy_name = os.path.join(args.log_dir, args.output + f"_{k}.npy")
         xyz_name = os.path.join(args.log_dir, args.output + f"_{k}.xyz")
         converter_xyz_output(npy_name, xyz_name, mol.z)
-        
+
+
 if __name__ == "__main__":
     args = get_args()
     mol, system, forces = setup(args)
