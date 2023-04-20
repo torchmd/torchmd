@@ -15,6 +15,7 @@ import importlib
 from torchmd.integrator import maxwell_boltzmann
 from torchmd.utils import save_argparse, LogWriter, LoadFromFile
 from torchmd.minimizers import minimize_bfgs
+from torchmd.utils import compute_max_interatomic_dist
 
 FS2NS = 1e-6
 
@@ -124,6 +125,9 @@ def get_args(arguments=None):
         type=tuple,
         help="exclusions for the LJ or repulsionCG term",
     )
+    parser.add_argument(
+        "--max_interatomic_dist", type=float, default=0.5, help="Maximum interatomic distance as stability parameter"
+    )
 
     args = parser.parse_args(args=arguments)
     os.makedirs(args.log_dir, exist_ok=True)
@@ -223,7 +227,7 @@ def dynamics(args, mol, system, forces):
         logs.append(
             LogWriter(
                 args.log_dir,
-                keys=("iter", "ns", "epot", "ekin", "etot", "T"),
+                keys=("iter", "ns", "epot", "ekin", "etot", "T","h_r","max_dist"),
                 name=f"monitor_{k}.csv",
             )
         )
@@ -239,6 +243,8 @@ def dynamics(args, mol, system, forces):
         Ekin, Epot, T = integrator.step(niter=args.output_period)
         wrapper.wrap(system.pos, system.box)
         currpos = system.pos.detach().cpu().numpy().copy()
+        max_dist=compute_max_interatomic_dist(currpos)
+
         for k in range(args.replicas):
             trajs[k].append(currpos[k])
             if (i * args.output_period) % args.save_period == 0:
@@ -255,8 +261,11 @@ def dynamics(args, mol, system, forces):
                     "ekin": Ekin[k],
                     "etot": Epot[k] + Ekin[k],
                     "T": T[k],
+                    "max_dist": max_dist[k]
                 }
             )
+        if max_dist.max() > args.max_interatomic_dist:
+            break
 
 
 if __name__ == "__main__":
