@@ -227,7 +227,7 @@ def dynamics(args, mol, system, forces):
         logs.append(
             LogWriter(
                 args.log_dir,
-                keys=("iter", "ns", "epot", "ekin", "etot", "T","h_r","max_dist"),
+                keys=("iter", "ns", "epot", "ekin", "etot", "T","max_dist"),
                 name=f"monitor_{k}.csv",
             )
         )
