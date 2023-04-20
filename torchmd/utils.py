@@ -72,3 +72,18 @@ def save_argparse(args, filename, exclude=None):
                 if k is exclude:
                     continue
                 f.write(f"{k}={v}\n")
+
+def compute_max_interatomic_dist(currpos):
+    #currpos.shape = (N_replicas, Natomos, 3)
+    N_replicas=currpos.shape[0]
+    N_atoms=currpos.shape[1]
+    max_i_d=np.zeros([N_replicas])
+    distance_matrix=np.zeros([N_replicas,N_atoms,N_atoms])
+    for rep in range(N_replicas):
+        for ind1 in range(Nat):
+            for ind2 in range(ind1+1,Nat):
+                distance_matrix[rep,ind1,ind2]=np.linalg.norm(currpos[rep,ind1,:]-currpos[rep,ind2,:])
+        max_i_d[rep]=np.max(distance_matrix[rep,:,:])
+
+    return max_i_d
+    
