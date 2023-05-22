@@ -4,7 +4,9 @@
 
 TorchMD intends to provide a simple to use API for performing molecular dynamics using PyTorch. This enables researchers to more rapidly do research in force-field development as well as integrate seamlessly neural network potentials into the dynamics, with the simplicity and power of PyTorch.
 
-TorchMD is currently WIP so feel free to provide feedback on the API or potential bugs in the GitHub issue tracker.
+TorchMD is currently WIP so feel free to provide feedback on the API or potential bugs in the GitHub issue tracker. 
+
+Also check TorchMD-Net for fast and accurate neural network potentials https://github.com/torchmd/torchmd-net/
 
 ## Citation
 
