@@ -75,23 +75,8 @@ def save_argparse(args, filename, exclude=None):
                 f.write(f"{k}={v}\n")
 
 
-#%% Converter
-# fmt: off
-
-elements=["A", "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na",
-      "Mg", "Al", "Si", "P", "S", "Cl", "Ar", "K", "Ca", "Sc", "Ti", "V", "Cr", 
-      "Mn", "Fe", "Co", "Ni", "Cu",  "Zn", "Ga", "Ge", "As", "Se", "Br",  "Kr",
-      "Rb", "Sr", "Y", "Zr", "Nb", "Mo",  "Tc", "Ru", "Rh",  "Pd", "Ag",  "Cd",
-      "In", "Sn", "Sb", "Te", "I", "Xe",  "Cs", "Ba", "La",  "Ce", "Pr",  "Nd",
-      "Pm", "Sm", "Eu", "Gd",  "Tb", "Dy", "Ho", "Er",  "Tm", "Yb", "Lu", "Hf",
-      "Ta", "W", "Re", "Os", "Ir",  "Pt", "Au", "Hg",  "Tl",  "Pb", "Bi", "Po",
-      "At", "Rn", "Fr", "Ra", "Ac", "Th",  "Pa", "U",  "Np",  "Pu", "Am", "Cm",
-      "Bk", "Cf", "Es", "Fm",  "Md", "No",  "Lr", "Rf", "Db", "Sg", "Bh", "Hs",
-      "Mt", "Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og"]
-# fmt: on
-
-
 def converter_xyz_output(input_file, output_file, z=None):
+    from moleculekit.periodictable import periodictable_by_number
     # it gets the embedding data from the mol.z attribute
     mol_elements = z
     npy_file = np.load(input_file)
@@ -104,7 +89,7 @@ def converter_xyz_output(input_file, output_file, z=None):
             f.write("\n\n")
             for j in range(Nats):
                 if "forces" not in input_file:
-                    f.write(elements[mol_elements[j]])
+                    f.write(periodictable_by_number[mol_elements[j]].symbol)
                     f.write(" ")
                 for k in range(3):
                     f.write(str(npy_file[j, k, i]))
