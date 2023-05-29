@@ -15,8 +15,12 @@ import importlib
 from torchmd.integrator import maxwell_boltzmann
 from torchmd.utils import save_argparse, LogWriter, LoadFromFile
 from torchmd.minimizers import minimize_bfgs
+from npzMol import npzMolecule
+from utils import elements, converter_xyz_output
 
 FS2NS = 1e-6
+batch_comp = False
+# set to false by default, it become True when you use the .npz file
 
 
 def viewFrame(mol, pos, forces):
@@ -124,6 +128,9 @@ def get_args(arguments=None):
         type=tuple,
         help="exclusions for the LJ or repulsionCG term",
     )
+    parser.add_argument(
+        "--npz_file", default=None, type=str, help="Input file.npz with coord and z"
+    )
 
     args = parser.parse_args(args=arguments)
     os.makedirs(args.log_dir, exist_ok=True)
@@ -161,6 +168,9 @@ def setup(args):
             .reshape(3, 1)
             .astype(np.float32)
         )
+    elif args.npz_file is not None:
+        mol = npzMolecule(args.npz_file)
+        batch_comp = True
 
     if args.coordinates is not None:
         mol.read(args.coordinates)
@@ -179,7 +189,12 @@ def setup(args):
     external = None
     if args.external is not None:
         externalmodule = importlib.import_module(args.external["module"])
-        embeddings = torch.tensor(args.external["embeddings"]).repeat(args.replicas, 1)
+        if batch_comp:
+            embeddings = torch.tensor(mol.embedding).repeat(args.replicas, 1)
+        else:
+            embeddings = torch.tensor(args.external["embeddings"]).repeat(
+                args.replicas, 1
+            )
         external = externalmodule.External(args.external["file"], embeddings, device)
 
     system = System(mol.numAtoms, args.replicas, precision, device)
@@ -205,7 +220,6 @@ def dynamics(args, mol, system, forces):
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
     device = torch.device(args.device)
-
     integrator = Integrator(
         system,
         forces,
@@ -234,6 +248,7 @@ def dynamics(args, mol, system, forces):
 
     iterator = tqdm(range(1, int(args.steps / args.output_period) + 1))
     Epot = forces.compute(system.pos, system.box, system.forces)
+
     for i in iterator:
         # viewFrame(mol, system.pos, system.forces)
         Ekin, Epot, T = integrator.step(niter=args.output_period)
@@ -257,6 +272,12 @@ def dynamics(args, mol, system, forces):
                     "T": T[k],
                 }
             )
+
+    # new for on replicas because we start from .npy file saved in the previous step
+    for k in range(args.replicas):
+        npy_name = os.path.join(args.log_dir, args.output + f"_{k}.npy")
+        xyz_name = os.path.join(args.log_dir, args.output + f"_{k}.xyz")
+        converter_xyz_output(npy_name, xyz_name, mol.z)
 
 
 if __name__ == "__main__":
