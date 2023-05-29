@@ -180,7 +180,8 @@ def setup(args):
     if args.external is not None:
         externalmodule = importlib.import_module(args.external["module"])
         embeddings = torch.tensor(args.external["embeddings"]).repeat(args.replicas, 1)
-        external = externalmodule.External(args.external["file"], embeddings, device)
+        output_transform = args.external["output_transform"] if "output_transform" in args.external else None
+        external = externalmodule.External(args.external["file"], embeddings, device, output_transform)
 
     system = System(mol.numAtoms, args.replicas, precision, device)
     system.set_positions(mol.coords)
