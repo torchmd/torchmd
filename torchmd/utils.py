@@ -1,6 +1,7 @@
 import csv
 import json
 import os
+import numpy as np
 import time
 import argparse
 import yaml
@@ -72,3 +73,25 @@ def save_argparse(args, filename, exclude=None):
                 if k is exclude:
                     continue
                 f.write(f"{k}={v}\n")
+
+
+def converter_xyz_output(input_file, output_file, z=None):
+    from moleculekit.periodictable import periodictable_by_number
+    # it gets the embedding data from the mol.z attribute
+    mol_elements = z
+    npy_file = np.load(input_file)
+    Nsteps = npy_file.shape[2]
+    Nats = npy_file.shape[0]
+    for i in range(Nsteps):
+        with open(output_file, "a") as f:
+            if "forces" not in input_file:
+                f.write(str(Nats))
+            f.write("\n\n")
+            for j in range(Nats):
+                if "forces" not in input_file:
+                    f.write(periodictable_by_number[mol_elements[j]].symbol)
+                    f.write(" ")
+                for k in range(3):
+                    f.write(str(npy_file[j, k, i]))
+                    f.write(" ")
+                f.write("\n")
