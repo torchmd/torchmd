@@ -67,7 +67,9 @@ jobs:
 
       - name: Build PyPI 📦
         run: |
-          python -m build --sdist --outdir dist/ .
+          python -m pip install --upgrade pip
+          pip install build twine versioneer==0.28
+          python -m build
 
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@master

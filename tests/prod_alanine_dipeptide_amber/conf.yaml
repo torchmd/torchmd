@@ -1,7 +1,7 @@
-forcefield: test-data/prod_alanine_dipeptide_amber/structure.prmtop
-topology: test-data/prod_alanine_dipeptide_amber/structure.prmtop
-coordinates: test-data/prod_alanine_dipeptide_amber/input.coor
-extended_system: test-data/prod_alanine_dipeptide_amber/input.xsc
+forcefield: tests/data/prod_alanine_dipeptide_amber/structure.prmtop
+topology: tests/data/prod_alanine_dipeptide_amber/structure.prmtop
+coordinates: tests/data/prod_alanine_dipeptide_amber/input.coor
+extended_system: tests/data/prod_alanine_dipeptide_amber/input.xsc
 
 seed: 1
 

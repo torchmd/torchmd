@@ -299,10 +299,6 @@ class _TestTorchMD(unittest.TestCase):
 
         logging.getLogger("parmed.structure").setLevel("ERROR")
 
-        # for d in glob(os.path.join("test-data", "*", "")):
-        # for d in [
-        #     "test-data/prod_alanine_dipeptide_amber/",
-        # ]:
         terms = [
             "bonds",
             "angles",
@@ -312,7 +308,7 @@ class _TestTorchMD(unittest.TestCase):
             "electrostatics",
             "lj",
         ]
-        for d in glob(os.path.join("test-data", "*", "")):
+        for d in glob(os.path.join("tests/data", "*", "")):
             with self.subTest(system=d):
                 print("\nRunning test:", d)
                 testname = os.path.basename(os.path.abspath(d))
@@ -389,7 +385,7 @@ class _TestTorchMD(unittest.TestCase):
                         keepForces(prm, struct, mol, forces=forceOMM)
                         keepForcesAmber(struct, mol, forces=forceOMM)
 
-                    if d == "test-data/waterbox/":
+                    if d == "tests/data/waterbox/":
                         # I don't support multi-frame evaluation yet
                         mol.dropFrames(keep=0)
 
@@ -472,7 +468,7 @@ class _TestTorchMD(unittest.TestCase):
 
         n_replicas = 2
 
-        testdir = os.path.join("test-data", "prod_alanine_dipeptide_amber")
+        testdir = os.path.join("tests/data", "prod_alanine_dipeptide_amber")
         mol = Molecule(os.path.join(testdir, "structure.prmtop"))
         mol.read(os.path.join(testdir, "input.coor"))
         struct = parmed.load_file(os.path.join(testdir, "structure.prmtop"))

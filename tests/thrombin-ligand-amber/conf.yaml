@@ -2,7 +2,7 @@ coordinates: null
 cutoff: 7.3
 device: cpu
 external: null
-forcefield: test-data/thrombin-ligand-amber/structure.prmtop
+forcefield: tests/data/thrombin-ligand-amber/structure.prmtop
 forceterms:
 langevin_gamma: 0.1
 langevin_temperature: 300
@@ -16,8 +16,8 @@ save_period: 10
 seed: 1
 steps: 100
 topology:
-  - test-data/thrombin-ligand-amber/structure.prmtop
+  - tests/data/thrombin-ligand-amber/structure.prmtop
 coordinates:
-  - test-data/thrombin-ligand-amber/structure.pdb
+  - tests/data/thrombin-ligand-amber/structure.pdb
 temperature: 300
 timestep: 4
