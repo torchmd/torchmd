@@ -78,7 +78,7 @@ def save_argparse(args, filename, exclude=None):
 def converter_xyz_output(input_file, output_file, z=None):
     from moleculekit.periodictable import periodictable_by_number
     # it gets the embedding data from the mol.z attribute
-    mol_elements = z
+    mol_elements = np.array(z)
     npy_file = np.load(input_file)
     Nsteps = npy_file.shape[2]
     Nats = npy_file.shape[0]
