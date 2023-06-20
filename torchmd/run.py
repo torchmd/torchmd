@@ -10,13 +10,12 @@ from torchmd.wrapper import Wrapper
 import numpy as np
 from tqdm import tqdm
 import argparse
-import math
 import importlib
 from torchmd.integrator import maxwell_boltzmann
 from torchmd.utils import save_argparse, LogWriter, LoadFromFile
 from torchmd.minimizers import minimize_bfgs
 from npzMol import npzMolecule
-from utils import elements, converter_xyz_output
+from utils import converter_xyz_output
 
 FS2NS = 1e-6
 batch_comp = False
@@ -195,7 +194,8 @@ def setup(args):
             embeddings = torch.tensor(args.external["embeddings"]).repeat(
                 args.replicas, 1
             )
-        external = externalmodule.External(args.external["file"], embeddings, device)
+        output_transform = args.external["output_transform"] if "output_transform" in args.external else None
+        external = externalmodule.External(args.external["file"], embeddings, device, output_transform)
 
     system = System(mol.numAtoms, args.replicas, precision, device)
     system.set_positions(mol.coords)
