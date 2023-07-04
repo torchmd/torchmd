@@ -18,7 +18,6 @@ from npzMol import npzMolecule
 from utils import converter_xyz_output
 
 FS2NS = 1e-6
-# set to false by default, it become True when you use the .npz file
 
 
 def viewFrame(mol, pos, forces):
@@ -149,7 +148,7 @@ def get_args(arguments=None):
 precisionmap = {"single": torch.float, "double": torch.double}
 
 
-def setup(args, batch_comp=None):
+def setup(args, batch_comp=False):
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
     # We want to set TF32 to false by default to avoid precision problems
