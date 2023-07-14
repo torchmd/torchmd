@@ -10,25 +10,16 @@ class npzMolecule:
         atomic numbers. Additional properties such as the box, the charges and the bonds are also stored in the class but are not necessary for
         the simulation."""
 
-        self.converter = {
-            "1": 1.0080,
-            "6": 12.011,
-            "7": 14.007,
-            "8": 15.999,
-            "9": 18.99840316,
-            "15": 30.97376200,
-            "16": 32.07,
-            "17": 35.45,
-            "35": 79.90,
-            "53": 126.9045,
-        }
-
         self.data = np.load(file)
         self.z = torch.from_numpy(self.data["z"])
         self.coords = torch.from_numpy(self.data["coord"])[:, :, None]
         self.numAtoms = len(self.z)
-        self.masses = self.make_masses_npz(self.z)
         self.embedding = self.z.tolist()
+
+        self.masses = torch.tensor(
+            [periodictable_by_number[int(el)].mass for el in self.z.tolist()]
+        ).to(torch.float32)[:, None]
+
         self.element = np.array(
             [periodictable_by_number[int(el)].symbol for el in self.z.tolist()]
         ).astype("object")
@@ -48,7 +39,3 @@ class npzMolecule:
             self.box = self.data["box"]
         else:
             self.box = np.zeros((3, 1))
-
-    def make_masses_npz(self, z):
-        masses = torch.tensor([self.converter[str(el)] for el in z.tolist()])
-        return masses[:, None]
