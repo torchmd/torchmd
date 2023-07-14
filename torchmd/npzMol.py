@@ -6,9 +6,8 @@ from moleculekit.periodictable import periodictable_by_number
 class npzMolecule:
     def __init__(self, file: str):
         """Class to load npz files in torchmd, essentially a wrapper around the npz file. Necessary information is extracted from the npz file
-        and stored in the class, such as the coordinates and the atomic numbers. The class also contains a dictionary to get atom masses from
-        atomic numbers. Additional properties such as the box, the charges and the bonds are also stored in the class but are not necessary for
-        the simulation."""
+        and stored in the class, such as the coordinates and the atomic numbers. Additional properties such as the box, the charges and the bonds
+        are also stored in the class but are not necessary for the simulation."""
 
         self.data = np.load(file)
         self.z = torch.from_numpy(self.data["z"])
