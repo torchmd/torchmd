@@ -15,7 +15,7 @@ from torchmd.integrator import maxwell_boltzmann
 from torchmd.utils import save_argparse, LogWriter, LoadFromFile
 from torchmd.minimizers import minimize_bfgs
 from npzMol import npzMolecule
-from utils import converter_xyz_output
+from utils import xyz_writer
 
 FS2NS = 1e-6
 batch_comp = False
@@ -277,7 +277,7 @@ def dynamics(args, mol, system, forces):
     for k in range(args.replicas):
         npy_name = os.path.join(args.log_dir, args.output + f"_{k}.npy")
         xyz_name = os.path.join(args.log_dir, args.output + f"_{k}.xyz")
-        converter_xyz_output(npy_name, xyz_name, mol.z)
+        xyz_writer(npy_name, xyz_name, mol.element)
 
 
 if __name__ == "__main__":
