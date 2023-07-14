@@ -75,10 +75,12 @@ def save_argparse(args, filename, exclude=None):
                 f.write(f"{k}={v}\n")
 
 
-def converter_xyz_output(input_file, output_file, z=None):
-    from moleculekit.periodictable import periodictable_by_number
-    # it gets the embedding data from the mol.z attribute
-    mol_elements = np.array(z)
+def xyz_writer(input_file, output_file, mol_elements):
+    """Writes xyz file from npy file, one xyz trajectory per replica.
+    Args:
+    input_file: path to npy file
+    output_file: path to xyz file
+    mol_elements: list of elements in the molecule"""
     npy_file = np.load(input_file)
     Nsteps = npy_file.shape[2]
     Nats = npy_file.shape[0]
@@ -89,7 +91,7 @@ def converter_xyz_output(input_file, output_file, z=None):
             f.write("\n\n")
             for j in range(Nats):
                 if "forces" not in input_file:
-                    f.write(periodictable_by_number[mol_elements[j]].symbol)
+                    f.write(mol_elements[j])
                     f.write(" ")
                 for k in range(3):
                     f.write(str(npy_file[j, k, i]))
