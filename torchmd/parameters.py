@@ -117,7 +117,7 @@ class Parameters:
             self.masses = mol.masses
         else:
             self.masses = self.make_masses(ff, mol.atomtype)
-        if "lj" in terms or "LJ" in terms:
+        if any(elem in terms for elem in ["lj", "repulsioncg", "repulsion"]):
             self.A, self.B = self.make_lj(ff, uqatomtypes)
         if "bonds" in terms and len(mol.bonds):
             uqbonds = np.unique([sorted(bb) for bb in mol.bonds], axis=0)

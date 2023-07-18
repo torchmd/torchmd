@@ -18,8 +18,6 @@ from npzMol import npzMolecule
 from utils import xyz_writer
 
 FS2NS = 1e-6
-batch_comp = False
-# set to false by default, it become True when you use the .npz file
 
 
 def viewFrame(mol, pos, forces):
@@ -150,7 +148,7 @@ def get_args(arguments=None):
 precisionmap = {"single": torch.float, "double": torch.double}
 
 
-def setup(args):
+def setup(args, batch_comp=False):
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
     # We want to set TF32 to false by default to avoid precision problems
@@ -194,8 +192,14 @@ def setup(args):
             embeddings = torch.tensor(args.external["embeddings"]).repeat(
                 args.replicas, 1
             )
-        output_transform = args.external["output_transform"] if "output_transform" in args.external else None
-        external = externalmodule.External(args.external["file"], embeddings, device, output_transform)
+        output_transform = (
+            args.external["output_transform"]
+            if "output_transform" in args.external
+            else None
+        )
+        external = externalmodule.External(
+            args.external["file"], embeddings, device, output_transform
+        )
 
     system = System(mol.numAtoms, args.replicas, precision, device)
     system.set_positions(mol.coords)
