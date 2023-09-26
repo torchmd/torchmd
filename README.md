@@ -51,6 +51,22 @@ Various examples can be found in the `examples` folder on how to perform dynamic
 
 Please use the github issue of this repository.
 
+## FAQ  
+
+#### How do I use a [TorchMD-Net](https://github.com/torchmd/torchmd-net/) NNP with TorchMD?  
+
+Use the `External` module of TorchMD-Net (see [here](https://github.com/torchmd/torchmd-net/blob/main/torchmdnet/calculators.py)), available in the TorchMD input with the `external` keyword.  
+You can provide `external` with a TorchMD-Net checkpoint.  
+```yaml
+external:
+  embeddings: []
+  file: "your/file/.ckpt"
+  module: torchmdnet.calculators
+```
+
+TorchMD uses chemical units such as kcal/mol for energies, K for temperatures and Å for distances. If it's not your case, you can use the `output_transform` argument to transform it.
+
+
 ## Acknowledgements
 
 We would like to acknowledge funding by the Chan Zuckerberg Initiative and Acellera in support of this project. This project will be now developed in collaboration with openMM (www.openmm.org) and acemd (www.acellera.com/acemd).
