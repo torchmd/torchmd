@@ -197,13 +197,15 @@ def setup(args, batch_comp=False):
                 embeddings = torch.tensor(args.external["embeddings"]).repeat(
                     args.replicas, 1
                 )
-        # remove from args_external the items that have been already passed to the external module
+
         file = args.external["file"]
+        # remove from args_external the items that have been already passed to the external module
         args.external = {
             key: value
             for key, value in args.external.items()
             if key not in ["module", "file", "embeddings"]
         }
+        
         external = externalmodule.External(
             file, embeddings, device=device, **args.external
         )
