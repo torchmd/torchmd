@@ -189,9 +189,14 @@ def setup(args, batch_comp=False):
         if batch_comp:
             embeddings = torch.tensor(mol.embedding).repeat(args.replicas, 1)
         else:
-            embeddings = torch.tensor(args.external["embeddings"]).repeat(
-                args.replicas, 1
-            )
+            if isinstance(args.external["embeddings"], str):
+                embeddings = torch.tensor(
+                    np.load(args.external["embeddings"]).astype(int)
+                ).repeat(args.replicas, 1)
+            else:
+                embeddings = torch.tensor(args.external["embeddings"]).repeat(
+                    args.replicas, 1
+                )
         # remove from args_external the items that have been already passed to the external module
         file = args.external["file"]
         args.external = {
