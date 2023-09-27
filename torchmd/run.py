@@ -196,12 +196,14 @@ def setup(args):
             )
         # remove from args_external the items that have been already passed to the external module
         file = args.external["file"]
-        args_external = {
+        args.external = {
             key: value
-            for key, value in args_external.items()
-            if key not in ["module", "file", "embedding"]
+            for key, value in args.external.items()
+            if key not in ["module", "file", "embeddings"]
         }
-        external = externalmodule.External(file, embeddings, device, **args.external)
+        external = externalmodule.External(
+            file, embeddings, device=device, **args.external
+        )
 
     system = System(mol.numAtoms, args.replicas, precision, device)
     system.set_positions(mol.coords)
