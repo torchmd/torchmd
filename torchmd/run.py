@@ -194,19 +194,14 @@ def setup(args):
             embeddings = torch.tensor(args.external["embeddings"]).repeat(
                 args.replicas, 1
             )
-        output_transform = (
-            args.external["output_transform"]
-            if "output_transform" in args.external
-            else None
-        )
+        # remove from args_external the items that have been already passed to the external module
+        args_external = {
+            key: value
+            for key, value in args_external.items()
+            if key not in ["module", "file", "embedding"]
+        }
         external = externalmodule.External(
-            args.external["file"],
-            embeddings,
-            device,
-            output_transform,
-            use_cuda_graph=args.external["use_cuda_graph"]
-            if "use_cuda_graph" in args.external
-            else False,
+            args.external["file"], embeddings, device, **args.external
         )
 
     system = System(mol.numAtoms, args.replicas, precision, device)
