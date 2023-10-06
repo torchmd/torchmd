@@ -189,9 +189,14 @@ def setup(args, batch_comp=False):
         if batch_comp:
             embeddings = torch.tensor(mol.embedding).repeat(args.replicas, 1)
         else:
-            embeddings = torch.tensor(args.external["embeddings"]).repeat(
-                args.replicas, 1
-            )
+            if isinstance(args.external["embeddings"], str):
+                embeddings = torch.tensor(
+                    np.load(args.external["embeddings"]).astype(int)
+                ).repeat(args.replicas, 1)
+            else:
+                embeddings = torch.tensor(args.external["embeddings"]).repeat(
+                    args.replicas, 1
+                )
         output_transform = (
             args.external["output_transform"]
             if "output_transform" in args.external

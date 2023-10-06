@@ -29,7 +29,7 @@ def minimize_bfgs(system, forces, fmax=0.5, steps=1000):
         return Epot, grad.reshape(-1)
 
     print("{0:4s} {1:9s}       {2:9s}".format("Iter", " Epot", " fmax"))
-    x0 = system.pos.detach().cpu().numpy()[0].astype(np.float64)
+    x0 = system.pos.detach().cpu().numpy()[0].astype(np.float64).flatten()
 
     res = minimize(
         evalfunc,
