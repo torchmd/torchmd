@@ -83,7 +83,6 @@ def xyz_writer(input_file, output_file, mol_elements):
     mol_elements (list): list of elements in the molecule
     """
     npy_traj = np.load(input_file)
-    print(f"npy_traj of shape {npy_traj.shape} successfully loaded!")
     Nats, _, Nsteps = npy_traj.shape
     with open(output_file, "a") as f:
         for i in range(Nsteps):
