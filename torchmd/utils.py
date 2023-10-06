@@ -76,24 +76,19 @@ def save_argparse(args, filename, exclude=None):
 
 
 def xyz_writer(input_file, output_file, mol_elements):
-    """Writes xyz file from npy file, one xyz trajectory per replica.
+    """Convert npy trajectory to xyz format
     Args:
-    input_file: path to npy file
-    output_file: path to xyz file
-    mol_elements: list of elements in the molecule"""
-    npy_file = np.load(input_file)
-    Nsteps = npy_file.shape[2]
-    Nats = npy_file.shape[0]
-    for i in range(Nsteps):
-        with open(output_file, "a") as f:
-            if "forces" not in input_file:
-                f.write(str(Nats))
-            f.write("\n\n")
+    input_file (str): path to npy trajectory
+    output_file (str): path to output xyz file
+    mol_elements (list): list of elements in the molecule
+    """
+    npy_traj = np.load(input_file)
+    print(f"npy_traj of shape {npy_traj.shape} successfully loaded!")
+    Nats, _, Nsteps = npy_traj.shape
+    with open(output_file, "a") as f:
+        for i in range(Nsteps):
+            f.write(f"{Nats}\n\n")
             for j in range(Nats):
-                if "forces" not in input_file:
-                    f.write(mol_elements[j])
-                    f.write(" ")
-                for k in range(3):
-                    f.write(str(npy_file[j, k, i]))
-                    f.write(" ")
+                f.write(f"{mol_elements[j]} ")
+                f.write(" ".join(map(str, npy_traj[j, :, i])))
                 f.write("\n")
