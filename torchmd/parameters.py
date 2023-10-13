@@ -1,6 +1,7 @@
 import torch
 from math import sqrt
 import numpy as np
+from  moleculekit.periodictable import periodictable
 
 
 class Parameters:
@@ -116,7 +117,7 @@ class Parameters:
         if mol.masses is not None and isinstance(mol.masses, torch.Tensor):
             self.masses = mol.masses
         else:
-            self.masses = self.make_masses(ff, mol.atomtype)
+            self.masses = self.make_masses(ff, mol)
         if any(elem in terms for elem in ["lj", "repulsioncg", "repulsion"]):
             self.A, self.B = self.make_lj(ff, uqatomtypes)
         if "bonds" in terms and len(mol.bonds):
@@ -159,8 +160,8 @@ class Parameters:
     # def make_charges(self, ff, atomtypes):
     #     return torch.tensor([ff.get_charge(at) for at in atomtypes])
 
-    def make_masses(self, ff, atomtypes):
-        masses = torch.tensor([ff.get_mass(at) for at in atomtypes])
+    def make_masses(self, ff, mol):
+        masses = torch.tensor([periodictable[el].mass for el in mol.element])
         masses.unsqueeze_(1)  # natoms,1
         return masses
 
