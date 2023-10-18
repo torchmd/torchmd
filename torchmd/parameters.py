@@ -1,7 +1,7 @@
 import torch
 from math import sqrt
 import numpy as np
-from npzMol import npzMolecule
+from torchmd.npzmol import npzMolecule
 
 
 class Parameters:
