@@ -2,6 +2,7 @@ import torch
 from math import sqrt
 import numpy as np
 from  moleculekit.periodictable import periodictable
+from npzMol import npzMolecule
 
 
 class Parameters:
@@ -114,8 +115,8 @@ class Parameters:
 
         self.mapped_atom_types = torch.tensor(indexes)
         self.charges = torch.tensor(mol.charge.astype(np.float64))
-        if mol.masses is not None and isinstance(mol.masses, torch.Tensor):
-            self.masses = mol.masses
+        if mol.masses is not None and isinstance(mol, npzMolecule):
+            self.masses = torch.tensor(mol.masses).to(torch.float32)[:, None]
         else:
             self.masses = self.make_masses(mol.element)
         if any(elem in terms for elem in ["lj", "repulsioncg", "repulsion"]):
