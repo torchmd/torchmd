@@ -159,8 +159,8 @@ class Parameters:
     # def make_charges(self, ff, atomtypes):
     #     return torch.tensor([ff.get_charge(at) for at in atomtypes])
 
-    def make_masses(self, elements):
-        masses = torch.tensor([periodictable[el].mass for el in elements])
+    def make_masses(self, ff, atomtypes):
+        masses = torch.tensor([ff.get_mass(at) for at in atomtypes])
         masses.unsqueeze_(1)  # natoms,1
         return masses
 
