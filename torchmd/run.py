@@ -14,7 +14,7 @@ import importlib
 from torchmd.integrator import maxwell_boltzmann
 from torchmd.utils import save_argparse, LogWriter, LoadFromFile
 from torchmd.minimizers import minimize_bfgs
-from npzMol import npzMolecule
+from torchmd.npzmol import npzMolecule
 from utils import xyz_writer
 
 FS2NS = 1e-6
