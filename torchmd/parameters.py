@@ -115,7 +115,7 @@ class Parameters:
         self.charges = torch.tensor(mol.charge.astype(np.float64))
         if mol.masses is not None:
             self.masses = torch.tensor(mol.masses).to(torch.float32)[:, None]
-        elif np.all(mol.atomtype != ""):
+        elif np.all(mol.atomtype != "") and ff.prm is not None:
             self.masses = self.make_masses(ff, mol.atomtype)
         else:
             raise RuntimeError(
