@@ -115,8 +115,12 @@ class Parameters:
         self.charges = torch.tensor(mol.charge.astype(np.float64))
         if mol.masses is not None:
             self.masses = torch.tensor(mol.masses).to(torch.float32)[:, None]
+        elif np.all(mol.atomtype != ""):
+            self.masses = self.make_masses(ff, mol.atomtype)
         else:
-            self.masses = self.make_masses(mol.element)
+            raise RuntimeError(
+                "No masses or atomtypes defined in the Molecule. Please define either in the input molecule so that we can get the atom masses"
+            )
         if any(elem in terms for elem in ["lj", "repulsioncg", "repulsion"]):
             self.A, self.B = self.make_lj(ff, uqatomtypes)
         if "bonds" in terms and len(mol.bonds):
