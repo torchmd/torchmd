@@ -119,7 +119,7 @@ class Parameters:
             self.masses = self.make_masses(ff, mol.atomtype)
         else:
             raise RuntimeError(
-                "No masses or atomtypes defined in the Molecule. Please define either in the input molecule so that we can get the atom masses"
+                "No masses or atomtypes defined in the Molecule. Please define either in the input molecule so that we can get the atom masses. Use mol.masses = [periodictable[el].mass for el in mol.element]"
             )
         if any(elem in terms for elem in ["lj", "repulsioncg", "repulsion"]):
             self.A, self.B = self.make_lj(ff, uqatomtypes)
