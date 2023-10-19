@@ -1,7 +1,6 @@
 import torch
 from math import sqrt
 import numpy as np
-from torchmd.npzmol import npzMolecule
 
 
 class Parameters:
@@ -114,7 +113,7 @@ class Parameters:
 
         self.mapped_atom_types = torch.tensor(indexes)
         self.charges = torch.tensor(mol.charge.astype(np.float64))
-        if mol.masses is not None and isinstance(mol, npzMolecule):
+        if mol.masses is not None:
             self.masses = torch.tensor(mol.masses).to(torch.float32)[:, None]
         else:
             self.masses = self.make_masses(mol.element)
