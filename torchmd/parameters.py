@@ -119,7 +119,7 @@ class Parameters:
             self.masses = self.make_masses(ff, mol.atomtype)
         else:
             raise RuntimeError(
-                "No masses or atomtypes defined in the Molecule. Please define either in the input molecule so that we can get the atom masses. Use mol.masses = [periodictable[el].mass for el in mol.element]"
+                "No masses or atomtypes defined in the Molecule. If you are using MM force-field parameters please read the *.prmtop file with the Molecule class so that atomtypes are set correctly. If you are not using MM force-fields set the atom masses as follows: from moleculekit.periodictable import periodictable; mol.masses = [periodictable[el].mass for el in mol.element]"
             )
         if any(elem in terms for elem in ["lj", "repulsioncg", "repulsion"]):
             self.A, self.B = self.make_lj(ff, uqatomtypes)
