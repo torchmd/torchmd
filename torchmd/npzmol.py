@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 from moleculekit.periodictable import periodictable_by_number
 
 
