@@ -4,9 +4,9 @@
 
 TorchMD intends to provide a simple to use API for performing molecular dynamics using PyTorch. This enables researchers to more rapidly do research in force-field development as well as integrate seamlessly neural network potentials into the dynamics, with the simplicity and power of PyTorch.
 
-TorchMD uses chemical units consistent with classical MD codes such as ACEMD, namely kcal/mol for energies, K for temperatures, g/mol for masses, and Å for distances. 
+TorchMD uses chemical units consistent with classical MD codes such as ACEMD, namely kcal/mol for energies, K for temperatures, g/mol for masses, and Å for distances.
 
-TorchMD is currently WIP so feel free to provide feedback on the API or potential bugs in the GitHub issue tracker. 
+TorchMD is currently WIP so feel free to provide feedback on the API or potential bugs in the GitHub issue tracker.
 
 Also check TorchMD-Net for fast and accurate neural network potentials https://github.com/torchmd/torchmd-net/
 
@@ -33,16 +33,14 @@ Note. All the code in this repository is MIT, however we use several file format
 
 ## Installation
 
-We recommend installing TorchMD in a new python environment ideally through the Miniconda package manager.
+We recommend installing TorchMD in a new python environment ideally through the Miniforge package manager.
 
 ```
-conda create -n torchmd
-conda activate torchmd
-conda install mamba python=3.10 -c conda-forge
-mamba install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia -c conda-forge
-pip install torchmd
-
+mamba create -n torchmd
+mamba activate torchmd
+mamba install pytorch python=3.10 -c conda-forge
 mamba install moleculekit parmed jupyter -c acellera -c conda-forge # For running the examples
+pip install torchmd
 ```
 
 ## Examples
