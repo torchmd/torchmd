@@ -352,7 +352,7 @@ class Parameters:
             atype.epsilon_14 = atype.epsilon
             prm.atom_types[at] = atype
 
-        if self.bonds is not None:
+        if self.bond_params is not None:
             bond_params = self.bond_params.detach().cpu()
             for i, b in enumerate(self.bonds):
                 key = (self.atomtypes[b[0]], self.atomtypes[b[1]])
@@ -360,7 +360,7 @@ class Parameters:
                 prm.bond_types[key] = btype
                 prm.bond_types[tuple(list(key)[::-1])] = btype
 
-        if self.angles is not None:
+        if self.angle_params is not None:
             angle_idx = self.angle_params["map"]
             angle_params = self.angle_params["params"].detach().cpu()
             for i, a in enumerate(self.angles):
@@ -372,15 +372,15 @@ class Parameters:
                 prm.angle_types[key] = atype
                 prm.angle_types[tuple(list(key)[::-1])] = atype
 
-        if self.dihedrals is not None:
+        if self.dihedral_params is not None:
             dihidx = self.dihedral_params["map"]
             dihparam = self.dihedral_params["params"].detach().cpu()
             for d, p in dihidx:
                 key = (
-                    self.atomtypes[self.dihedrals[d, 0]],
-                    self.atomtypes[self.dihedrals[d, 1]],
-                    self.atomtypes[self.dihedrals[d, 2]],
-                    self.atomtypes[self.dihedrals[d, 3]],
+                    self.atomtypes[self.dihedral_params["idx"][d, 0]],
+                    self.atomtypes[self.dihedral_params["idx"][d, 1]],
+                    self.atomtypes[self.dihedral_params["idx"][d, 2]],
+                    self.atomtypes[self.dihedral_params["idx"][d, 3]],
                 )
                 if key not in prm.dihedral_types:
                     prm.dihedral_types[key] = DihedralTypeList()
@@ -389,7 +389,9 @@ class Parameters:
                 scnb = 2
                 scee = 1.2
                 idx14 = self.idx14.cpu().numpy()
-                dih14 = sorted([int(self.dihedrals[d, x].cpu()) for x in [0, 3]])
+                dih14 = sorted(
+                    [int(self.dihedral_params["idx"][d, x].cpu()) for x in [0, 3]]
+                )
                 idx = np.where(np.all(idx14 == np.array(dih14), axis=1))[0]
                 if len(idx):
                     idx = idx[0]
@@ -406,15 +408,15 @@ class Parameters:
                 prm.dihedral_types[key].append(dtype)
                 prm.dihedral_types[tuple(list(key)[::-1])].append(dtype)
 
-        if self.impropers is not None:
+        if self.improper_params is not None:
             impridx = self.improper_params["map"]
             imprparam = self.improper_params["params"].detach().cpu()
             for d, p in impridx:
                 key = (
-                    self.atomtypes[self.impropers[d, 0]],
-                    self.atomtypes[self.impropers[d, 1]],
-                    self.atomtypes[self.impropers[d, 2]],
-                    self.atomtypes[self.impropers[d, 3]],
+                    self.atomtypes[self.improper_params["idx"][d, 0]],
+                    self.atomtypes[self.improper_params["idx"][d, 1]],
+                    self.atomtypes[self.improper_params["idx"][d, 2]],
+                    self.atomtypes[self.improper_params["idx"][d, 3]],
                 )
                 skey = sorted([key[0], key[1], key[3]])
                 key = tuple([skey[0], skey[1], key[2], skey[2]])
