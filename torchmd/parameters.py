@@ -166,7 +166,7 @@ class Parameters:
 
         k = 0
         for i, bb in enumerate(uqbonds):
-            at_t = tuple(sorted(mol.atomtype[bb]))
+            at_t = tuple(mol.atomtype[bb])
             if at_t not in bonds["params"]:
                 bonds["params"][at_t] = [k, ff.get_bond(*at_t)]
                 k += 1
@@ -185,9 +185,9 @@ class Parameters:
 
         k = 0
         for i, aa in enumerate(uqangles):
-            at = mol.atomtype[aa]
-            terminals = sorted([at[0], at[2]])
-            at_t = tuple([terminals[0], at[1], terminals[1]])
+            # at = mol.atomtype[aa]
+            # terminals = sorted([at[0], at[2]])
+            at_t = tuple(mol.atomtype[aa])
             if at_t not in angles["params"]:
                 angles["params"][at_t] = [k, ff.get_angle(*at_t)]
                 k += 1
@@ -353,55 +353,54 @@ class Parameters:
             prm.atom_types[at] = atype
 
         if self.bond_params is not None:
-            bond_params = self.bond_params.detach().cpu()
-            for i, b in enumerate(self.bonds):
-                key = (self.atomtypes[b[0]], self.atomtypes[b[1]])
-                btype = BondType(k=bond_params[i, 0], req=bond_params[i, 1])
+            bond_params = self.bond_params["params"].detach().cpu()
+            for b, p in self.bond_params["map"]:
+                bond_idx = self.bond_params["idx"][b]
+                key = tuple(self.atomtypes[bond_idx.cpu()])
+                btype = BondType(k=bond_params[p, 0], req=bond_params[p, 1])
                 prm.bond_types[key] = btype
                 prm.bond_types[tuple(list(key)[::-1])] = btype
 
         if self.angle_params is not None:
-            angle_idx = self.angle_params["map"]
             angle_params = self.angle_params["params"].detach().cpu()
-            for i, a in enumerate(self.angles):
-                key = (self.atomtypes[a[0]], self.atomtypes[a[1]], self.atomtypes[a[2]])
+            for a, p in self.angle_params["map"]:
+                angle_idx = self.angle_params["idx"][a]
+                key = tuple(self.atomtypes[angle_idx.cpu()])
                 atype = AngleType(
-                    k=angle_params[i, 0],
-                    theteq=np.rad2deg(angle_params[i, 1].cpu()),
+                    k=angle_params[p, 0],
+                    theteq=np.rad2deg(angle_params[p, 1].cpu()),
                 )
                 prm.angle_types[key] = atype
                 prm.angle_types[tuple(list(key)[::-1])] = atype
 
         if self.dihedral_params is not None:
-            dihidx = self.dihedral_params["map"]
-            dihparam = self.dihedral_params["params"].detach().cpu()
-            for d, p in dihidx:
-                key = (
-                    self.atomtypes[self.dihedral_params["idx"][d, 0]],
-                    self.atomtypes[self.dihedral_params["idx"][d, 1]],
-                    self.atomtypes[self.dihedral_params["idx"][d, 2]],
-                    self.atomtypes[self.dihedral_params["idx"][d, 3]],
-                )
+            dih_param = self.dihedral_params["params"].detach().cpu()
+            for d, p in self.dihedral_params["map"]:
+                key = tuple(self.atomtypes[self.dihedral_params["idx"][d].cpu()])
                 if key not in prm.dihedral_types:
                     prm.dihedral_types[key] = DihedralTypeList()
                     prm.dihedral_types[tuple(list(key)[::-1])] = DihedralTypeList()
 
                 scnb = 2
                 scee = 1.2
-                idx14 = self.idx14.cpu().numpy()
+                idx14 = self.nonbonded_14_params["idx"].cpu().numpy()
                 dih14 = sorted(
                     [int(self.dihedral_params["idx"][d, x].cpu()) for x in [0, 3]]
                 )
                 idx = np.where(np.all(idx14 == np.array(dih14), axis=1))[0]
                 if len(idx):
                     idx = idx[0]
-                    scnb = np.round(float(self.nonbonded_14_params[idx, 2].cpu()), 2)
-                    scee = np.round(float(self.nonbonded_14_params[idx, 3].cpu()), 2)
+                    scnb = np.round(
+                        float(self.nonbonded_14_params["params"][idx, 2].cpu()), 2
+                    )
+                    scee = np.round(
+                        float(self.nonbonded_14_params["params"][idx, 3].cpu()), 2
+                    )
 
                 dtype = DihedralType(
-                    phi_k=dihparam[p, 0],
-                    per=dihparam[p, 2],
-                    phase=np.rad2deg(dihparam[p, 1]),
+                    phi_k=dih_param[p, 0],
+                    per=dih_param[p, 2],
+                    phase=np.rad2deg(dih_param[p, 1]),
                     scee=scee,
                     scnb=scnb,
                 )
@@ -409,28 +408,22 @@ class Parameters:
                 prm.dihedral_types[tuple(list(key)[::-1])].append(dtype)
 
         if self.improper_params is not None:
-            impridx = self.improper_params["map"]
-            imprparam = self.improper_params["params"].detach().cpu()
-            for d, p in impridx:
-                key = (
-                    self.atomtypes[self.improper_params["idx"][d, 0]],
-                    self.atomtypes[self.improper_params["idx"][d, 1]],
-                    self.atomtypes[self.improper_params["idx"][d, 2]],
-                    self.atomtypes[self.improper_params["idx"][d, 3]],
-                )
+            impr_param = self.improper_params["params"].detach().cpu()
+            for d, p in self.improper_params["map"]:
+                key = tuple(self.atomtypes[self.improper_params["idx"][d].cpu()])
                 skey = sorted([key[0], key[1], key[3]])
                 key = tuple([skey[0], skey[1], key[2], skey[2]])
-                per = imprparam[p, 2]
+                per = impr_param[p, 2]
                 if per == 0:
                     dtype = ImproperType(
-                        psi_k=imprparam[p, 0], psi_eq=np.rad2deg(imprparam[p, 1])
+                        psi_k=impr_param[p, 0], psi_eq=np.rad2deg(impr_param[p, 1])
                     )
                     prm.improper_types[key] = dtype
                 else:
                     dtype = DihedralType(
-                        phi_k=imprparam[p, 0],
-                        per=imprparam[p, 2],
-                        phase=np.rad2deg(imprparam[p, 1]),
+                        phi_k=impr_param[p, 0],
+                        per=impr_param[p, 2],
+                        phase=np.rad2deg(impr_param[p, 1]),
                     )
                     prm.improper_periodic_types[key] = dtype
 
