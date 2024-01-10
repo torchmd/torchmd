@@ -41,6 +41,13 @@ class Forces:
                 'Set force terms or leave empty brackets [].\nAvailable options: "bonds", "angles", "dihedrals", "impropers", "1-4", "electrostatics", "lj", "repulsion", "repulsioncg".'
             )
 
+        # Precalculate A, B arrays for nonbonded terms
+        if self.par.nonbonded_params is not None and "lj" in terms:
+            self.par.A, self.par.B = self.par.get_AB()
+
+        # if self.par.nonbonded_14_params is not None and "lj" in terms:
+        #     self.par.A14, self.par.B14 = self.par.get_AB_14()
+
         self.energies = [ene.lower() for ene in terms]
         for et in self.energies:
             if et not in Forces.terms:

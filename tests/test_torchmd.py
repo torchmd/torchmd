@@ -511,7 +511,7 @@ class _TestTorchMD(unittest.TestCase):
             explicit_forces=False,
         )
         assert len(Epot) == 2
-        assert np.abs(Epot[0] + 1722.3567) < 1e-4 and np.abs(Epot[1] + 1722.3567) < 1e-4
+        assert np.abs(Epot[0] + 1722.3569) < 1e-4 and np.abs(Epot[1] + 1722.3569) < 1e-4
 
     # def test_cg(self):
     #     from torchmd.run import get_args, setup

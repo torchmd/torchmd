@@ -12,8 +12,7 @@ class Parameters:
         precision=torch.float,
         device="cpu",
     ):
-        self.A = None
-        self.B = None
+        self.nonbonded_params = None
         self.bond_params = None
         self.charges = None
         self.masses = None
@@ -34,10 +33,9 @@ class Parameters:
     def to_(self, device):
         self.charges = self.charges.to(device)
         self.masses = self.masses.to(device)
-        if self.A is not None:
-            self.A = self.A.to(device)
-        if self.B is not None:
-            self.B = self.B.to(device)
+        if self.nonbonded_params is not None:
+            self.nonbonded_params["map"] = self.nonbonded_params["map"].to(device)
+            self.nonbonded_params["params"] = self.nonbonded_params["params"].to(device)
         if self.bond_params is not None:
             self.bond_params["idx"] = self.bond_params["idx"].to(device)
             self.bond_params["map"] = self.bond_params["map"].to(device)
@@ -67,10 +65,10 @@ class Parameters:
     def precision_(self, precision):
         self.charges = self.charges.type(precision)
         self.masses = self.masses.type(precision)
-        if self.A is not None:
-            self.A = self.A.type(precision)
-        if self.B is not None:
-            self.B = self.B.type(precision)
+        if self.nonbonded_params is not None:
+            self.nonbonded_params["params"] = self.nonbonded_params["params"].type(
+                precision
+            )
         if self.bond_params is not None:
             self.bond_params["params"] = self.bond_params["params"].type(precision)
         if self.angle_params is not None:
@@ -123,7 +121,7 @@ class Parameters:
                 "No masses or atomtypes defined in the Molecule. If you are using MM force-field parameters please read the *.prmtop file with the Molecule class so that atomtypes are set correctly. If you are not using MM force-fields set the atom masses as follows: from moleculekit.periodictable import periodictable; mol.masses = [periodictable[el].mass for el in mol.element]"
             )
         if any(elem in terms for elem in ["lj", "repulsioncg", "repulsion"]):
-            self.A, self.B = self.make_lj(ff, uqatomtypes)
+            self.nonbonded_params = self.make_nonbonded(mol, ff, uqatomtypes)
         if "bonds" in terms and len(mol.bonds):
             self.bond_params = self.make_bonds(mol, ff)
         if "angles" in terms and len(mol.angles):
@@ -138,26 +136,25 @@ class Parameters:
     # def make_charges(self, ff, atomtypes):
     #     return torch.tensor([ff.get_charge(at) for at in atomtypes])
 
+    def make_nonbonded(self, mol, ff, uqatomtypes):
+        nonbonded = {"idx": [], "map": [], "params": {}}
+        k = 0
+        for at in uqatomtypes:
+            nonbonded["params"][at] = [k, ff.get_LJ(at)]
+            k += 1
+
+        for i in range(mol.numAtoms):
+            at = mol.atomtype[i]
+            nonbonded["map"].append([i, nonbonded["params"][at][0]])
+
+        nonbonded["map"] = torch.tensor(nonbonded["map"])
+        nonbonded["params"] = torch.tensor([x[1] for x in nonbonded["params"].values()])
+        return nonbonded
+
     def make_masses(self, ff, atomtypes):
         masses = torch.tensor([ff.get_mass(at) for at in atomtypes])
         masses.unsqueeze_(1)  # natoms,1
         return masses
-
-    def make_lj(self, ff, uqatomtypes):
-        sigma = []
-        epsilon = []
-        for at in uqatomtypes:
-            ss, ee = ff.get_LJ(at)
-            sigma.append(ss)
-            epsilon.append(ee)
-
-        sigma = np.array(sigma, dtype=np.float64)
-        epsilon = np.array(epsilon, dtype=np.float64)
-
-        A, B = calculate_AB(sigma, epsilon)
-        A = torch.tensor(A)
-        B = torch.tensor(B)
-        return A, B
 
     def make_bonds(self, mol, ff):
         uqbonds = np.unique([sorted(bb) for bb in mol.bonds], axis=0)
@@ -285,7 +282,7 @@ class Parameters:
 
         return nonbonded_14
 
-    def getParameters(self, include=None, exclude=None):
+    def get_parameters(self, include=None, exclude=None):
         terms = ["charges", "lj", "bonds", "angles", "dihedrals", "impropers", "1-4"]
         if include is not None:
             terms = include
@@ -296,21 +293,20 @@ class Parameters:
         if "charges" in terms:
             params.append(self.charges)
         if "lj" in terms:
-            params.append(self.A)
-            params.append(self.B)
+            params.append(self.nonbonded_params["params"])
         if "bonds" in terms:
-            params.append(self.bond_params)
+            params.append(self.bond_params["params"])
         if "angles" in terms:
-            params.append(self.angle_params)
+            params.append(self.angle_params["params"])
         if "dihedrals" in terms:
             params.append(self.dihedral_params["params"])
         if "impropers" in terms:
             params.append(self.improper_params["params"])
         if "1-4" in terms:
-            params.append(self.nonbonded_14_params)
+            params.append(self.nonbonded_14_params["params"])
         return params
 
-    def toParmed(self, mol):
+    def to_parmed(self, mol):
         """Convert Parameters to a parmed.ParameterSet object"""
         from moleculekit.periodictable import periodictable
         from parmed.parameters import ParameterSet
@@ -325,9 +321,8 @@ class Parameters:
 
         prm = ParameterSet()
         uqatomtypes = np.unique(self.atomtypes)
-        sigma, epsilon = get_sigma_epsilon(
-            np.diag(self.A.detach().cpu()), np.diag(self.B.detach().cpu())
-        )
+        sigma = self.nonbonded_params["params"][:, 0].detach().cpu()
+        epsilon = self.nonbonded_params["params"][:, 1].detach().cpu()
 
         for i, at in enumerate(uqatomtypes):
             idx = np.where(self.atomtypes == at)[0][0]
@@ -429,22 +424,32 @@ class Parameters:
 
         return prm
 
+    def get_AB(self):
+        return calculate_AB(
+            self.nonbonded_params["params"][:, 0], self.nonbonded_params["params"][:, 1]
+        )
+
+    def get_AB_14(self):
+        return calculate_AB(
+            self.nonbonded_14_params["params"][:, 0],
+            self.nonbonded_14_params["params"][:, 1],
+        )
+
 
 def calculate_AB(sigma, epsilon):
     # Lorentz - Berthelot combination rule
     sigma_table = 0.5 * (sigma + sigma[:, None])
-    eps_table = np.sqrt(epsilon * epsilon[:, None])
-    sigma_table_6 = sigma_table**6
-    sigma_table_12 = sigma_table_6 * sigma_table_6
-    A = eps_table * 4 * sigma_table_12
-    B = eps_table * 4 * sigma_table_6
-    del sigma_table_12, sigma_table_6, eps_table, sigma_table
+    eps_table = torch.sqrt(epsilon * epsilon[:, None])
+    sigma_table = sigma_table**6
+    B = eps_table * 4 * sigma_table
+    A = eps_table * 4 * sigma_table * sigma_table
+    # del eps_table, sigma_table
     return A, B
 
 
-def get_sigma_epsilon(A, B):
-    sigma = 1 / (B / A) ** (1 / 6)
-    epsilon = B / (4 * sigma**6)
+def get_sigma_epsilon(Adiag, Bdiag):
+    sigma = 1 / (Bdiag / Adiag) ** (1 / 6)
+    epsilon = Bdiag / (4 * sigma**6)
     return sigma, epsilon
 
 
