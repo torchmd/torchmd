@@ -289,21 +289,21 @@ class Parameters:
         if exclude is not None:
             terms = [term for term in terms if term not in exclude]
 
-        params = []
+        params = {}
         if "charges" in terms:
-            params.append(self.charges)
+            params["charges"] = self.charges
         if "lj" in terms:
-            params.append(self.nonbonded_params["params"])
+            params["lj"] = self.nonbonded_params["params"]
         if "bonds" in terms:
-            params.append(self.bond_params["params"])
+            params["bonds"] = self.bond_params["params"]
         if "angles" in terms:
-            params.append(self.angle_params["params"])
+            params["angles"] = self.angle_params["params"]
         if "dihedrals" in terms:
-            params.append(self.dihedral_params["params"])
+            params["dihedrals"] = self.dihedral_params["params"]
         if "impropers" in terms:
-            params.append(self.improper_params["params"])
+            params["impropers"] = self.improper_params["params"]
         if "1-4" in terms:
-            params.append(self.nonbonded_14_params["params"])
+            params["1-4"] = self.nonbonded_14_params["params"]
         return params
 
     def to_parmed(self, mol):
@@ -343,8 +343,8 @@ class Parameters:
             #     atype.epsilon_14 = np.round(epsilon_14, 4)
             # else:
             # OpenMM <NonbondedForce> cannot handle distinct 1-4 sigma and epsilon parameters
-            atype.sigma_14 = atype.sigma
-            atype.epsilon_14 = atype.epsilon
+            atype.sigma_14 = sigma[i]
+            atype.epsilon_14 = epsilon[i]
             prm.atom_types[at] = atype
 
         if self.bond_params is not None:
