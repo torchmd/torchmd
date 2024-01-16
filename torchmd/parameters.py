@@ -251,6 +251,8 @@ class Parameters:
         return impropers
 
     def make_14(self, mol, ff):
+        from collections import defaultdict
+
         # Keep only dihedrals whos 1/4 atoms are not in bond+angle exclusions
         uqdihedrals = np.unique(
             [dih if dih[0] < dih[3] else dih[::-1] for dih in mol.dihedrals], axis=0
@@ -265,6 +267,8 @@ class Parameters:
             uq14idx = np.unique(dih14[:, [0, 3]], axis=0, return_index=True)[1]
             dih14 = dih14[uq14idx]
             nonbonded_14["idx"] = torch.tensor(dih14[:, [0, 3]].astype(np.int64))
+
+            param_idx = defaultdict(list)
             for i, uqdih in enumerate(mol.atomtype[dih14]):
                 scnb, scee, lj1_s14, lj1_e14, lj4_s14, lj4_e14 = ff.get_14(*uqdih)
                 # Lorentz - Berthelot combination rule
@@ -274,8 +278,15 @@ class Parameters:
                 s12 = s6 * s6
                 A = eps * 4 * s12
                 B = eps * 4 * s6
-                nonbonded_14["map"].append([i, i])
-                nonbonded_14["params"].append([A, B, scnb, scee])
+
+                if tuple(uqdih[::-1]) in param_idx:
+                    uqdih = uqdih[::-1]
+
+                if tuple(uqdih) not in param_idx:
+                    nonbonded_14["params"].append([A, B, scnb, scee])
+                    param_idx[tuple(uqdih)] = len(nonbonded_14["params"]) - 1
+
+                nonbonded_14["map"].append([i, param_idx[tuple(uqdih)]])
 
             nonbonded_14["map"] = torch.tensor(nonbonded_14["map"])
             nonbonded_14["params"] = torch.tensor(nonbonded_14["params"])
@@ -370,37 +381,36 @@ class Parameters:
 
         if self.dihedral_params is not None:
             dih_param = self.dihedral_params["params"].detach().cpu()
-            for d, p in self.dihedral_params["map"]:
-                key = tuple(self.atomtypes[self.dihedral_params["idx"][d].cpu()])
+            dih_map = self.dihedral_params["map"].detach().cpu()
+            for i in range(dih_param.shape[0]):
+                map_idx = np.where(dih_map[:, 1] == i)[0][0]
+                dih_idx = dih_map[map_idx, 0]
+                dih_quad = self.dihedral_params["idx"][dih_idx].cpu()
+
+                key = tuple(self.atomtypes[dih_quad])
                 if key not in prm.dihedral_types:
                     prm.dihedral_types[key] = DihedralTypeList()
-                    prm.dihedral_types[tuple(list(key)[::-1])] = DihedralTypeList()
+                    prm.dihedral_types[tuple(list(key)[::-1])] = prm.dihedral_types[key]
 
                 scnb = 2
                 scee = 1.2
                 idx14 = self.nonbonded_14_params["idx"].cpu().numpy()
-                dih14 = sorted(
-                    [int(self.dihedral_params["idx"][d, x].cpu()) for x in [0, 3]]
-                )
+                dih14 = sorted([int(dih_quad[0]), int(dih_quad[3])])
                 idx = np.where(np.all(idx14 == np.array(dih14), axis=1))[0]
                 if len(idx):
-                    idx = idx[0]
-                    scnb = np.round(
-                        float(self.nonbonded_14_params["params"][idx, 2].cpu()), 2
-                    )
-                    scee = np.round(
-                        float(self.nonbonded_14_params["params"][idx, 3].cpu()), 2
-                    )
+                    param14_idx = self.nonbonded_14_params["map"][idx[0], 1]
+                    nb_14_params = self.nonbonded_14_params["params"].detach().cpu()
+                    scnb = np.round(float(nb_14_params[param14_idx, 2]), 2)
+                    scee = np.round(float(nb_14_params[param14_idx, 3]), 2)
 
                 dtype = DihedralType(
-                    phi_k=dih_param[p, 0],
-                    per=dih_param[p, 2],
-                    phase=np.rad2deg(dih_param[p, 1]),
+                    phi_k=dih_param[i, 0],
+                    per=dih_param[i, 2],
+                    phase=np.rad2deg(dih_param[i, 1]),
                     scee=scee,
                     scnb=scnb,
                 )
                 prm.dihedral_types[key].append(dtype)
-                prm.dihedral_types[tuple(list(key)[::-1])].append(dtype)
 
         if self.improper_params is not None:
             impr_param = self.improper_params["params"].detach().cpu()

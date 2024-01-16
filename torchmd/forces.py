@@ -204,7 +204,6 @@ class Forces:
                 #         ),
                 #     )
                 prm_idx = self.par.nonbonded_14_params["map"][:, 1]
-
                 aa = nonbonded_14_params[prm_idx, 0]
                 bb = nonbonded_14_params[prm_idx, 1]
                 scnb = nonbonded_14_params[prm_idx, 2]
