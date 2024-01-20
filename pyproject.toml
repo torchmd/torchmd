@@ -26,7 +26,7 @@ homepage = "https://github.com/torchmd/torchmd/"
 repository = "https://github.com/torchmd/torchmd/"
 
 [tool.setuptools.packages.find]
-include = ["torchmd*"]
+include = ["torchmd*", "LICENSE.md"]
 
 [tool.versioneer]
 VCS = "git"
