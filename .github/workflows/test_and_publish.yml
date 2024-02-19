@@ -17,12 +17,12 @@ jobs:
         shell: bash -l {0}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           lfs: true
           submodules: true
 
-      - uses: conda-incubator/setup-miniconda@v2
+      - uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
@@ -58,9 +58,9 @@ jobs:
         python-version: ["3.9"]
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
 
-      - uses: conda-incubator/setup-miniconda@v2
+      - uses: conda-incubator/setup-miniconda@v3
         with:
           activate-environment: deploy
           python-version: ${{ matrix.python-version }}
