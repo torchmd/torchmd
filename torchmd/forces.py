@@ -565,16 +565,16 @@ def evaluate_torsion(r12, r23, r34, dih_idx, torsion_params, explicit_forces=Tru
 
     if torch.all(per > 0):  # AMBER torsions
         angleDiff = per * phi[dih_idx] - phi0
-        pot.scatter_add_(0, dih_idx, k0 * (1 + torch.cos(angleDiff)))
+        pot = torch.scatter_add_(pot, 0, dih_idx, k0 * (1 + torch.cos(angleDiff)))
         if explicit_forces:
-            coeff.scatter_add_(0, dih_idx, -per * k0 * torch.sin(angleDiff))
+            coeff = torch.scatter_add_(coeff, 0, dih_idx, -per * k0 * torch.sin(angleDiff))
     else:  # CHARMM torsions
         angleDiff = phi[dih_idx] - phi0
         angleDiff[angleDiff < -pi] = angleDiff[angleDiff < -pi] + 2 * pi
         angleDiff[angleDiff > pi] = angleDiff[angleDiff > pi] - 2 * pi
-        pot.scatter_add_(0, dih_idx, k0 * angleDiff**2)
+        pot = torch.scatter_add_(pot, 0, dih_idx, k0 * angleDiff**2)
         if explicit_forces:
-            coeff.scatter_add_(0, dih_idx, 2 * k0 * angleDiff)
+            coeff = torch.scatter_add_(coeff, 0, dih_idx, 2 * k0 * angleDiff)
 
     # coeff.unsqueeze_(1)
 
