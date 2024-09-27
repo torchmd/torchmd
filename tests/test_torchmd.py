@@ -541,6 +541,62 @@ class _TestTorchMD(unittest.TestCase):
     #                     f"Difference in energies detected for term {term}: {Epot[i][term]} vs reference {reference[i][term]}"
     #                 )
 
+    def test_vmap(self):
+        from moleculekit.molecule import Molecule
+        import os
+
+        testdir = os.path.join("tests/data", "prod_alanine_dipeptide_amber")
+        mol = Molecule(os.path.join(testdir, "structure.prmtop"))
+        mol.read(os.path.join(testdir, "input.coor"))
+        struct = parmed.load_file(os.path.join(testdir, "structure.prmtop"))
+        prm = parmed.amber.AmberParameterSet().from_structure(struct)
+        terms = [
+            "bonds",
+            "angles",
+            "dihedrals",
+            "impropers",
+            "1-4",
+            "electrostatics",
+            "lj",
+        ]
+        cutoff = None # cutoff not supported yet because of dynamic shape in _filter_by_cutoff
+        switch_dist = 7.5
+        rfa = False # rfa needs valid cutoff
+        precision = torch.double
+        device = "cpu"
+
+        ff = ForceField.create(mol, prm)
+        parameters = Parameters(ff, mol, precision=precision, device=device)
+        system = getTorchMDSystem(mol, device, precision)
+        forces = Forces(
+            parameters,
+            terms=terms,
+            cutoff=cutoff,
+            switch_dist=switch_dist,
+            rfa=rfa,
+        )
+
+        batch_size = 10
+        positions = torch.stack([system.pos]*batch_size, dim=0)
+        positions.requires_grad = True
+        
+        Epot = torch.vmap(forces.compute, in_dims=(0, ))(
+            positions,
+            box=system.box,
+            forces=None,
+            returnDetails=False,
+            explicit_forces=False,
+            calculateForces=False,
+            toNumpy=False,
+        )
+
+        Epot.sum().backward()
+        forces = -positions.grad
+ 
+        assert Epot.shape == (batch_size, 1)
+        assert forces.shape == positions.shape
+        assert (Epot[0] + 1768.8915).abs() < 1e-4 and (Epot[1] + 1768.8915).abs() < 1e-4
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
