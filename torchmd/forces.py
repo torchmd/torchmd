@@ -319,15 +319,15 @@ class Forces:
             if explicit_forces:
                 forces += ext_force
 
-        # if not explicit_forces:
-        #     enesum = torch.zeros(1, device=pos.device, dtype=pos.dtype)
-        #     for i in range(nsystems):
-        #         for ene in pot[i]:
-        #             if pot[i][ene].requires_grad:
-        #                 enesum = enesum + pot[i][ene]
-        #     forces[:] = -torch.autograd.grad(
-        #         enesum, pos, only_inputs=True, retain_graph=True
-        #     )[0]
+        if not explicit_forces and calculateForces:
+            enesum = torch.zeros(1, device=pos.device, dtype=pos.dtype)
+            for i in range(nsystems):
+                for ene in pot[i]:
+                    if pot[i][ene].requires_grad:
+                        enesum = enesum + pot[i][ene]
+            forces[:] = -torch.autograd.grad(
+                enesum, pos, only_inputs=True, retain_graph=True
+            )[0]
 
         if not returnDetails:
             pot = torch.stack([torch.sum(torch.cat(list(pp.values()))) for pp in pot])
