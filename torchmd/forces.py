@@ -90,16 +90,10 @@ class Forces:
         toNumpy=True,
         calculateForces=True,
     ):
-        if not explicit_forces and not pos.requires_grad:
-            raise RuntimeError(
-                "The positions passed don't require gradients. Please use pos.detach().requires_grad_(True) before passing."
-            )
         if not calculateForces:
             explicit_forces = False
 
         nsystems = pos.shape[0]
-        if torch.any(torch.isnan(pos)):
-            raise RuntimeError("Found NaN coordinates.")
 
         pot = []
         for i in range(nsystems):
@@ -136,7 +130,7 @@ class Forces:
                     )
                 E, force_coeff = evaluate_bonds(bond_dist, bond_params, explicit_forces)
 
-                pot[i]["bonds"] += E.sum()
+                pot[i]["bonds"] = pot[i]["bonds"] + E.sum()
                 if explicit_forces:
                     forcevec = bond_unitvec * force_coeff[:, None]
                     forces[i].index_add_(0, pairs[:, 0], -forcevec)
@@ -154,7 +148,7 @@ class Forces:
                     explicit_forces,
                 )
 
-                pot[i]["angles"] += E.sum()
+                pot[i]["angles"] = pot[i]["angles"] + E.sum()
                 if explicit_forces:
                     forces[i].index_add_(0, angle_idx[:, 0], angle_forces[0])
                     forces[i].index_add_(0, angle_idx[:, 1], angle_forces[1])
@@ -175,7 +169,7 @@ class Forces:
                     explicit_forces,
                 )
 
-                pot[i]["dihedrals"] += E.sum()
+                pot[i]["dihedrals"] = pot[i]["dihedrals"] + E.sum()
                 if explicit_forces:
                     forces[i].index_add_(0, dihed_idx[:, 0], dihedral_forces[0])
                     forces[i].index_add_(0, dihed_idx[:, 1], dihedral_forces[1])
@@ -213,7 +207,7 @@ class Forces:
                     E, force_coeff = evaluate_LJ_internal(
                         nb_dist, aa, bb, scnb, None, None, explicit_forces
                     )
-                    pot[i]["lj"] += E.sum()
+                    pot[i]["lj"] = pot[i]["lj"] + E.sum()
                     if explicit_forces:
                         forcevec = nb_unitvec * force_coeff[:, None]
                         forces[i].index_add_(0, idx14[:, 0], -forcevec)
@@ -229,7 +223,7 @@ class Forces:
                         solventDielectric=self.solventDielectric,
                         explicit_forces=explicit_forces,
                     )
-                    pot[i]["electrostatics"] += E.sum()
+                    pot[i]["electrostatics"] = pot[i]["electrostatics"] + E.sum()
                     if explicit_forces:
                         forcevec = nb_unitvec * force_coeff[:, None]
                         forces[i].index_add_(0, idx14[:, 0], -forcevec)
@@ -250,7 +244,7 @@ class Forces:
                     explicit_forces,
                 )
 
-                pot[i]["impropers"] += E.sum()
+                pot[i]["impropers"] = pot[i]["impropers"] + E.sum()
                 if explicit_forces:
                     forces[i].index_add_(0, impr_idx[:, 0], improper_forces[0])
                     forces[i].index_add_(0, impr_idx[:, 1], improper_forces[1])
@@ -279,7 +273,7 @@ class Forces:
                             solventDielectric=self.solventDielectric,
                             explicit_forces=explicit_forces,
                         )
-                        pot[i][v] += E.sum()
+                        pot[i][v] = pot[i][v] + E.sum()
                     elif v == "lj":
                         E, force_coeff = evaluate_LJ(
                             nb_dist,
@@ -291,7 +285,7 @@ class Forces:
                             self.cutoff,
                             explicit_forces,
                         )
-                        pot[i][v] += E.sum()
+                        pot[i][v] = pot[i][v] + E.sum()
                     elif v == "repulsion":
                         E, force_coeff = evaluate_repulsion(
                             nb_dist,
@@ -300,7 +294,7 @@ class Forces:
                             self.par.A,
                             explicit_forces,
                         )
-                        pot[i][v] += E.sum()
+                        pot[i][v] = pot[i][v] + E.sum()
                     elif v == "repulsioncg":
                         E, force_coeff = evaluate_repulsion_CG(
                             nb_dist,
@@ -309,7 +303,7 @@ class Forces:
                             self.par.B,
                             explicit_forces,
                         )
-                        pot[i][v] += E.sum()
+                        pot[i][v] = pot[i][v] + E.sum()
                     else:
                         continue
 
@@ -321,19 +315,19 @@ class Forces:
         if self.external:
             ext_ene, ext_force = self.external.calculate(pos, box)
             for s in range(nsystems):
-                pot[s]["external"] += ext_ene[s]
+                pot[s]["external"] = pot[s]["external"] + ext_ene[s]
             if explicit_forces:
                 forces += ext_force
 
-        if not explicit_forces and calculateForces:
-            enesum = torch.zeros(1, device=pos.device, dtype=pos.dtype)
-            for i in range(nsystems):
-                for ene in pot[i]:
-                    if pot[i][ene].requires_grad:
-                        enesum += pot[i][ene]
-            forces[:] = -torch.autograd.grad(
-                enesum, pos, only_inputs=True, retain_graph=True
-            )[0]
+        # if not explicit_forces:
+        #     enesum = torch.zeros(1, device=pos.device, dtype=pos.dtype)
+        #     for i in range(nsystems):
+        #         for ene in pot[i]:
+        #             if pot[i][ene].requires_grad:
+        #                 enesum = enesum + pot[i][ene]
+        #     forces[:] = -torch.autograd.grad(
+        #         enesum, pos, only_inputs=True, retain_graph=True
+        #     )[0]
 
         if not returnDetails:
             pot = torch.stack([torch.sum(torch.cat(list(pp.values()))) for pp in pot])
