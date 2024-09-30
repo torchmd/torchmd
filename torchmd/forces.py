@@ -90,7 +90,13 @@ class Forces:
         toNumpy=True,
         calculateForces=True,
     ):
-        if not calculateForces:
+
+        if calculateForces:
+            if not explicit_forces and not pos.requires_grad:
+                raise RuntimeError(
+                    "The positions passed don't require gradients. Please use pos.detach().requires_grad_(True) before passing."
+                )
+        else:
             explicit_forces = False
 
         nsystems = pos.shape[0]
