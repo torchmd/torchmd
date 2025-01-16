@@ -1,5 +1,8 @@
 import torch
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def minimize_bfgs(system, forces, fmax=0.5, steps=1000):
@@ -57,18 +60,227 @@ def minimize_pytorch_bfgs(system, forces, steps=1000):
 
     def closure(step):
         opt.zero_grad()
-        Epot = forces.compute(
-            pos, system.box, system.forces, explicit_forces=False, returnDetails=False
-        )
-        Etot = torch.sum(torch.cat(Epot))
+        Epot = forces.compute(pos, system.box, system.forces)[0]
         grad = -system.forces.detach().cpu().numpy().astype(np.float64)[0]
-        maxforce = float(torch.max(torch.norm(grad, dim=1)))
-        print("{0:4d}   {1: 3.6f}   {2: 3.6f}".format(step[0], float(Etot), maxforce))
+        maxforce = np.max(np.linalg.norm(grad, axis=1))
+        print("{0:4d}   {1: 3.6f}   {2: 3.6f}".format(step[0], float(Epot), maxforce))
         step[0] += 1
-        return Etot
+        return Epot
 
     print("{0:4s} {1:9s}       {2:9s}".format("Iter", " Epot", " fmax"))
     step = [0]
     opt.step(lambda: closure(step))
 
     system.pos[:] = pos.detach().requires_grad_(False)
+
+
+def _get_energy_forces(forces, system, pos, getForces=True):
+    Epot = forces.compute(pos, system.box, system.forces)[0]
+    if getForces:
+        frc = system.forces.detach()[0]
+        return Epot, frc
+    else:
+        return Epot
+
+
+def _bracket_and_golden_section_search(forces, system, initpos, search_dir, u):
+    """
+    Bracket and golden section search algorithm.
+
+    Parameters
+    ----------
+    forces: torch.Tensor
+        Forces on the atoms
+    system: System
+        System object
+    initpos: torch.Tensor
+        Initial position
+    search_dir: torch.Tensor
+        Search direction
+    u: float
+        Should be initialized to be potential for pos, returns potential for min energy pos
+    """
+    tau = 0.618033988749895  # tau=(sqrt(5)-1)/2,  solution to  tau^2 = 1-tau
+    dis = 1.0  # largest displacement along search direction
+    tol = 1.0e-2  # tolerance for convergence of search interval
+    u_amin = u
+
+    # use s and dis2 to determine amax search factor
+    smax2 = torch.max(torch.sum(search_dir**2, dim=1))
+    smax = torch.sqrt(smax2)
+
+    amax = dis / smax
+    amin = 0.0
+    delta = amax - amin
+
+    a1 = amin + (1 - tau) * delta
+    a2 = amin + tau * delta
+
+    # interval is considered trivially bracketed if small enough
+    is_bracket = (delta * smax) <= tol
+
+    # find potential for amax
+    u_amax = _get_energy_forces(forces, system, initpos + amax * search_dir, False)
+
+    # find potential for a1
+    u_a1 = _get_energy_forces(forces, system, initpos + a1 * search_dir, False)
+
+    # find potential for a2
+    u_a2, frc = _get_energy_forces(forces, system, initpos + a2 * search_dir, True)
+
+    # save most recent computation
+    u = u_a2
+
+    while not is_bracket:
+        if u_a1 >= u_amin:
+            # shrink bracketing interval to [amin,a1]
+            # compute new u_a1, u_a2
+            amax = a1
+            u_amax = u_a1
+
+            delta = amax - amin
+            a1 = amin + (1 - tau) * delta
+            a2 = amin + tau * delta
+
+            # find potential for a1
+            pos = initpos + a1 * search_dir
+            u_a1 = _get_energy_forces(forces, system, pos, False)
+
+            # find potential for a2
+            pos = initpos + a2 * search_dir
+            u_a2, frc = _get_energy_forces(forces, system, pos, True)
+
+            # update is_bracket since interval has shrunk
+            is_bracket = delta * smax <= tol
+
+            # save most recent computation
+            u = u_a2
+        elif u_a2 >= u_amin:
+            # shrink bracketing interval to [amin,a2]
+            # compute new u_a1
+            amax = a2
+            u_amax = u_a2
+            a2 = a1
+            u_a2 = u_a1
+
+            delta = amax - amin
+            a1 = amin + (1 - tau) * delta
+
+            # find potential for a1
+            pos = initpos + a1 * search_dir
+            u_a1, frc = _get_energy_forces(forces, system, pos, True)
+
+            # update is_bracket since interval has shrunk
+            is_bracket = delta * smax <= tol
+
+            # save most recent computation
+            u = u_a1
+        elif u_amax < u_a1 and u_amax < u_a2:
+            # shift bracketing interval to [a2,a2+delta]
+            # compute new u_a2, u_amax
+            amin = a2
+            u_amin = u_a2
+            a1 = amax
+            u_a1 = u_amax
+
+            amax = amin + delta
+            a2 = amin + tau * delta
+
+            # find potential for amax
+            pos = initpos + amax * search_dir
+            u_amax = _get_energy_forces(forces, system, pos, False)
+
+            # find potential for a2
+            pos = initpos + a2 * search_dir
+            u_a2, frc = _get_energy_forces(forces, system, pos, True)
+        else:
+            # now we consider bracketed interval unimodal
+            # continue with golden section search
+            is_bracket = True
+
+    # golden section search
+    while delta * smax > tol:
+        if u_a1 > u_a2:
+            amin = a1
+            u_amin = u_a1
+            delta = amax - amin
+
+            a1 = a2
+            u_a1 = u_a2
+
+            a2 = amin + tau * delta
+
+            # find potential for a2
+            pos = initpos + a2 * search_dir
+            u_a2, frc = _get_energy_forces(forces, system, pos, True)
+
+            # save most recent computation
+            u = u_a2
+        else:
+            amax = a2
+            u_amax = u_a2
+            delta = amax - amin
+
+            a2 = a1
+            u_a2 = u_a1
+
+            a1 = amin + (1 - tau) * delta
+
+            # find potential for a1
+            pos = initpos + a1 * search_dir
+            u_a1, frc = _get_energy_forces(forces, system, pos, True)
+
+            # save most recent computation
+            u = u_a1
+
+    assert frc is not None
+    assert pos is not None
+
+    return pos, frc, u
+
+
+def minimize_cg(system, forces, steps=1000, start_step: int = 0, threshold=None):
+    pos = system.pos.detach().requires_grad_(True)
+
+    # compute initial force
+    u, frc = _get_energy_forces(forces, system, pos, getForces=True)
+
+    # use force to set initial search direction
+    search_dir = frc.clone().detach()
+
+    # find f dot f
+    fdf = torch.sum(frc**2)
+
+    # conjugate gradient loop
+    for step in range(start_step, steps):
+
+        # retain initial position
+        initpos = pos.clone().detach()
+
+        # find minimum along search direction
+        pos, frc, u = _bracket_and_golden_section_search(
+            forces, system, initpos, search_dir, u
+        )
+
+        old_fdf = fdf
+
+        # find f dot f
+        fdf = torch.sum(frc**2)
+
+        # determine new search direction
+        beta = fdf / old_fdf
+        maxforce = torch.max(torch.abs(frc))
+
+        search_dir = frc + beta * search_dir
+
+        energy, frc = _get_energy_forces(forces, system, pos, True)
+
+        # print results
+        maxforce = torch.max(torch.abs(frc))
+        logger.info(f"{step:12d} {energy:14.4f} {maxforce:16.4f}")
+
+        # terminate
+        if threshold is not None and maxforce < threshold:
+            return step
+
+    return steps - 1

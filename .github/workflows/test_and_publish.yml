@@ -26,6 +26,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           miniforge-version: latest
+          conda-remove-defaults: true
 
       - name: Lint with flake8
         run: |
@@ -65,6 +66,7 @@ jobs:
           activate-environment: deploy
           python-version: ${{ matrix.python-version }}
           miniforge-version: latest
+          conda-remove-defaults: true
 
       - name: Build PyPI 📦
         run: |
