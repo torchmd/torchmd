@@ -10,7 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest"]
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
 
     defaults: # Needed for conda
       run:
@@ -24,8 +24,8 @@ jobs:
 
       - uses: conda-incubator/setup-miniconda@v3
         with:
-          auto-update-conda: true
           python-version: ${{ matrix.python-version }}
+          channels: conda-forge
 
       - name: Lint with flake8
         run: |
@@ -64,6 +64,7 @@ jobs:
         with:
           activate-environment: deploy
           python-version: ${{ matrix.python-version }}
+          channels: conda-forge
 
       - name: Build PyPI 📦
         run: |
@@ -72,6 +73,6 @@ jobs:
           python -m build
 
       - name: Publish distribution 📦 to PyPI
-        uses: pypa/gh-action-pypi-publish@master
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PUBLIC_PYPI_API_TOKEN }}
