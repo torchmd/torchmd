@@ -3,7 +3,7 @@ $(error version variable is not set. Call with `make release version=XXX`)
 endif
 
 release:
-	git checkout master
+	git checkout main
 	git fetch
 	git pull
 	git tag -a $(version) -m "$(version) release"
