@@ -27,7 +27,7 @@ class Wrapper:
         # Move non-grouped atoms
         if len(self.nongrouped):
             offset = torch.floor(pos[:, self.nongrouped] / box) * box
-            pos[:, self.nongrouped] -= offset.unsqueeze(1)
+            pos[:, self.nongrouped] -= offset
 
 
 def calculate_molecule_groups(natoms, bonds, device):
