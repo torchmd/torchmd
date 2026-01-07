@@ -93,6 +93,10 @@ class Integrator:
             self.masses = systems.masses
         else:
             self.masses = self.forces.par.masses
+            self.masses = torch.tensor(
+                self.masses, device=device, dtype=systems.pos.dtype
+            )
+            self.masses = self.masses.view(-1, 1)
 
         if T:
             self.vcoeff = torch.sqrt(

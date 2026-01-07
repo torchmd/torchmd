@@ -12,7 +12,7 @@ class System:
         self.pos = torch.zeros(nreplicas, natoms, 3)
         self.vel = torch.zeros(nreplicas, natoms, 3)
         self.forces = torch.zeros(nreplicas, natoms, 3)
-        self.masses = torch.zeros(natoms)
+        self.masses = torch.zeros(natoms, 1)
 
         self.to_(device)
         self.precision_(precision)
@@ -87,6 +87,6 @@ class System:
     def set_masses(self, masses):
         if masses.shape != (self.natoms,):
             raise RuntimeError("Masses shape must be (natoms,)")
-        self.masses[:] = (
+        self.masses[:, 0] = (
             masses.clone().detach().type(self.masses.dtype).to(self.masses.device)
         )
