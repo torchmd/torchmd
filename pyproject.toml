@@ -45,6 +45,7 @@ build-backend = "setuptools.build_meta"
 
 [dependency-groups]
 dev = [
+    "flake8>=7.3.0",
     "natsort>=8.4.0",
     "openmm>=8.4.0.post2",
     "pytest>=9.0.2",
