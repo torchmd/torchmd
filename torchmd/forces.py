@@ -80,6 +80,10 @@ class Forces:
             indexedarrays.append(arr[under_cutoff])
         return indexedarrays
 
+    @property
+    def masses(self):
+        return self.par.masses
+
     def compute(
         self,
         pos,
@@ -567,7 +571,9 @@ def evaluate_torsion(r12, r23, r34, dih_idx, torsion_params, explicit_forces=Tru
         angleDiff = per * phi[dih_idx] - phi0
         pot = torch.scatter_add(pot, 0, dih_idx, k0 * (1 + torch.cos(angleDiff)))
         if explicit_forces:
-            coeff = torch.scatter_add(coeff, 0, dih_idx, -per * k0 * torch.sin(angleDiff))
+            coeff = torch.scatter_add(
+                coeff, 0, dih_idx, -per * k0 * torch.sin(angleDiff)
+            )
     else:  # CHARMM torsions
         angleDiff = phi[dih_idx] - phi0
         angleDiff[angleDiff < -pi] = angleDiff[angleDiff < -pi] + 2 * pi

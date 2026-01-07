@@ -90,7 +90,7 @@ class Integrator:
         self.gamma = gamma
         self.T = T
         if T:
-            M = self.forces.par.masses
+            M = self.forces.masses
             self.vcoeff = torch.sqrt(2.0 * gamma / M * BOLTZMAN * T * self.dt).to(
                 device
             )
@@ -99,11 +99,11 @@ class Integrator:
             # number of atoms per batch
             self.natoms = torch.bincount(batch).cpu().numpy()
         else:
-            self.natoms = len(self.forces.par.masses)
+            self.natoms = len(self.forces.masses)
 
     def step(self, niter=1):
         systems = self.systems
-        masses = self.forces.par.masses
+        masses = self.forces.masses
 
         for _ in range(niter):
             _first_VV(systems.pos, systems.vel, systems.forces, masses, self.dt)
