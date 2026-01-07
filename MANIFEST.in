@@ -1,0 +1,5 @@
+prune bin
+prune examples
+prune scripts
+prune tests
+exclude Makefile
