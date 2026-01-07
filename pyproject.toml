@@ -10,18 +10,18 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
 ]
-dependencies = [
-    "torch",
-    "pyyaml",
-    "tqdm",
+requires-python = ">=3.9"
+dependencies = ["torch", "pyyaml", "tqdm"]
+
+[project.optional-dependencies]
+full = [
     "moleculekit",
     "pandas",
     "networkx",
-    "scipy",         # Only needed for minimizers
+    "scipy",
     "parmed>=4.3.0",
     "numpy<2",
 ]
-requires-python = ">=3.9"
 
 
 [project.urls]
