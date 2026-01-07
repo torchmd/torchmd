@@ -2,24 +2,26 @@
 name = "torchmd"
 dynamic = ["version"]
 description = "TorchMD. Molecular dynamics with pytorch"
-authors = [
-    { name = "Acellera", email = "info@acellera.com" }
-]
+authors = [{ name = "Acellera", email = "info@acellera.com" }]
 readme = "README.md"
-license = {file = "LICENSE.md"}
+license = { file = "LICENSE.md" }
 classifiers = [
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
+    "torch",
     "pyyaml",
     "tqdm",
     "moleculekit",
     "pandas",
     "networkx",
-    "scipy" # Only needed for minimizers
+    "scipy", # Only needed for minimizers
+    "parmed>=4.3.0",
 ]
+requires-python = ">=3.10"
+
 
 [project.urls]
 homepage = "https://github.com/torchmd/torchmd/"
@@ -39,3 +41,19 @@ parentdir_prefix = "torchmd-"
 [build-system]
 requires = ["setuptools", "toml", "versioneer[toml]==0.28"]
 build-backend = "setuptools.build_meta"
+
+[dependency-groups]
+dev = ["pytest>=9.0.2"]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu126", marker = "(sys_platform == 'linux' or sys_platform == 'win32') and platform_machine != 'aarch64' and platform_machine != 'arm64'" },
+]
+torchvision = [
+    { index = "pytorch-cu126", marker = "(sys_platform == 'linux' or sys_platform == 'win32') and platform_machine != 'aarch64' and platform_machine != 'arm64'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
