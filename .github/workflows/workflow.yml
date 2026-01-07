@@ -1,0 +1,14 @@
+name: Whole
+
+on: [push]
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+    secrets: inherit
+
+  publish:
+    if: startsWith(github.event.ref, 'refs/tags/v')
+    needs: test
+    uses: ./.github/workflows/publish.yml
+    secrets: inherit
