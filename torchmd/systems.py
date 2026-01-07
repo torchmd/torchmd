@@ -12,6 +12,7 @@ class System:
         self.pos = torch.zeros(nreplicas, natoms, 3)
         self.vel = torch.zeros(nreplicas, natoms, 3)
         self.forces = torch.zeros(nreplicas, natoms, 3)
+        self.masses = torch.zeros(natoms)
 
         self.to_(device)
         self.precision_(precision)
@@ -29,12 +30,14 @@ class System:
         self.box = self.box.to(device)
         self.pos = self.pos.to(device)
         self.vel = self.vel.to(device)
+        self.masses = self.masses.to(device)
 
     def precision_(self, precision):
         self.forces = self.forces.type(precision)
         self.box = self.box.type(precision)
         self.pos = self.pos.type(precision)
         self.vel = self.vel.type(precision)
+        self.masses = self.masses.type(precision)
 
     def set_positions(self, pos):
         if pos.shape[1] != 3:
@@ -79,4 +82,11 @@ class System:
             raise RuntimeError("Forces shape must be (nreplicas, natoms, 3)")
         self.forces[:] = torch.tensor(
             forces, dtype=self.forces.dtype, device=self.forces.device
+        )
+
+    def set_masses(self, masses):
+        if masses.shape != (self.natoms,):
+            raise RuntimeError("Masses shape must be (natoms,)")
+        self.masses[:] = (
+            masses.clone().detach().type(self.masses.dtype).to(self.masses.device)
         )

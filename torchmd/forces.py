@@ -80,10 +80,6 @@ class Forces:
             indexedarrays.append(arr[under_cutoff])
         return indexedarrays
 
-    @property
-    def masses(self):
-        return self.par.masses
-
     def compute(
         self,
         pos,

@@ -89,30 +89,33 @@ class Integrator:
             gamma = gamma / PICOSEC2TIMEU
         self.gamma = gamma
         self.T = T
+        if torch.any(systems.masses != 0):
+            self.masses = systems.masses
+        else:
+            self.masses = self.forces.par.masses
+
         if T:
-            M = self.forces.masses
-            self.vcoeff = torch.sqrt(2.0 * gamma / M * BOLTZMAN * T * self.dt).to(
-                device
-            )
+            self.vcoeff = torch.sqrt(
+                2.0 * gamma / self.masses * BOLTZMAN * T * self.dt
+            ).to(device)
         self.batch = batch
         if batch is not None:
             # number of atoms per batch
             self.natoms = torch.bincount(batch).cpu().numpy()
         else:
-            self.natoms = len(self.forces.masses)
+            self.natoms = len(self.masses)
 
     def step(self, niter=1):
         systems = self.systems
-        masses = self.forces.masses
 
         for _ in range(niter):
-            _first_VV(systems.pos, systems.vel, systems.forces, masses, self.dt)
+            _first_VV(systems.pos, systems.vel, systems.forces, self.masses, self.dt)
             pot = self.forces.compute(systems.pos, systems.box, systems.forces)
             if self.T:
                 langevin(systems.vel, self.gamma, self.vcoeff, self.dt, self.device)
-            _second_VV(systems.vel, systems.forces, masses, self.dt)
+            _second_VV(systems.vel, systems.forces, self.masses, self.dt)
 
-        ke_result = kinetic_energy(masses, systems.vel, self.batch)
+        ke_result = kinetic_energy(self.masses, systems.vel, self.batch)
         Ekin = ke_result.flatten().cpu().numpy()
         T = kinetic_to_temp(Ekin, self.natoms)
         return Ekin, pot, T

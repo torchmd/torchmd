@@ -149,12 +149,10 @@ def test_integrator_initialization():
     precision = torch.float32
 
     system = System(natoms, nreplicas, precision, device)
+    system.set_masses(torch.tensor([1.0, 2.0]))
 
     # Create a mock forces object
     class MockForces:
-        def __init__(self):
-            self.masses = torch.tensor([[1.0], [2.0]], dtype=precision, device=device)
-
         def compute(self, pos, box, forces):
             # Return zero potential energy for simplicity
             return 0.0
@@ -191,16 +189,12 @@ def test_integrator_step():
     system = System(natoms, nreplicas, precision, device)
 
     # Set some initial velocities
-    velocities = torch.tensor(
-        [[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]], dtype=precision, device=device
-    )
-    system.vel[:] = velocities
+    velocities = torch.tensor([[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]])
+    system.set_velocities(velocities)
+    system.set_masses(torch.tensor([1.0, 2.0]))
 
     # Create a mock forces object
     class MockForces:
-        def __init__(self):
-            self.masses = torch.tensor([[1.0], [2.0]], dtype=precision, device=device)
-
         def compute(self, pos, box, forces):
             # Set some non-zero forces to test integration
             forces.copy_(
@@ -229,7 +223,7 @@ def test_integrator_step():
     assert not torch.allclose(system.vel, velocities)
 
     # Check kinetic energy calculation
-    expected_kinetic = kinetic_energy(forces.masses, system.vel)
+    expected_kinetic = kinetic_energy(system.masses, system.vel)
     np.testing.assert_allclose(Ekin, expected_kinetic.numpy().flatten(), rtol=1e-6)
 
     # Test multiple steps
@@ -255,23 +249,15 @@ def test_integrator_with_batches():
     system = System(natoms, nreplicas, precision, device)
 
     # Set initial velocities
-    velocities = torch.tensor(
-        [[[1.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 3.0]]],
-        dtype=precision,
-        device=device,
-    )
-    system.vel[:] = velocities
+    velocities = torch.tensor([[[1.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 3.0]]])
+    system.set_velocities(velocities)
+    system.set_masses(torch.tensor([1.0, 2.0, 1.5]))
 
     # Create batch indices: atoms 0,1 in batch 0, atom 2 in batch 1
     batch = torch.tensor([0, 0, 1], dtype=torch.long, device=device)
 
     # Create a mock forces object
     class MockForces:
-        def __init__(self):
-            self.masses = torch.tensor(
-                [[1.0], [2.0], [1.5]], dtype=precision, device=device
-            )
-
         def compute(self, pos, box, forces):
             # Set significant forces to test integration (much larger to see velocity change)
             forces.copy_(
@@ -309,7 +295,7 @@ def test_integrator_with_batches():
     assert not torch.allclose(system.vel, velocities)
 
     # Check kinetic energy calculation with batching
-    expected_kinetic = kinetic_energy(forces.masses, system.vel, batch=batch)
+    expected_kinetic = kinetic_energy(system.masses, system.vel, batch=batch)
     np.testing.assert_allclose(Ekin, expected_kinetic.numpy().flatten(), rtol=1e-6)
 
     # Verify the kinetic energy values make sense
