@@ -51,27 +51,49 @@ def minimize_bfgs(system, forces, fmax=0.5, steps=1000):
     )
 
 
-def minimize_pytorch_bfgs(system, forces, steps=1000):
+def minimize_pytorch_bfgs(
+    system, calculator, steps=10, max_iter=20, tolerance_change=1e-9
+):
     if steps == 0:
         return
 
-    pos = system.pos.detach().requires_grad_(True)
-    opt = torch.optim.LBFGS([pos], max_iter=steps, tolerance_change=1e-09)
+    # Work with [N, 3] shape like optimize_geometries
+    pos_flat = system.pos.view(-1, 3).clone().detach().requires_grad_(True)
+    opt = torch.optim.LBFGS(
+        [pos_flat], max_iter=max_iter, tolerance_change=tolerance_change
+    )
+
+    energies = []
 
     def closure(step):
         opt.zero_grad()
-        Epot = forces.compute(pos, system.box, system.forces)[0]
-        grad = -system.forces.detach().cpu().numpy().astype(np.float64)[0]
-        maxforce = np.max(np.linalg.norm(grad, axis=1))
-        print("{0:4d}   {1: 3.6f}   {2: 3.6f}".format(step[0], float(Epot), maxforce))
+
+        # Reshape for calculator which expects [nreplicas, natoms, 3]
+        pos_reshaped = pos_flat.view(system.nreplicas, system.natoms, 3)
+        Epot = calculator.compute(
+            pos_reshaped, system.box, system.forces, toNumpy=False
+        )
+        Epot = torch.stack(Epot)
+        energies.append(Epot.detach().cpu().numpy())
+
+        Epot = torch.sum(Epot)  # Sum over all replicas
+        Epot.backward()  # Compute gradients for the minimizer
+
+        maxgrad = np.max(np.linalg.norm(pos_flat.grad.detach().cpu().numpy(), axis=1))
+        print("{0:4d}   {1: 3.6f}   {2: 3.6f}".format(step[0], float(Epot), maxgrad))
         step[0] += 1
         return Epot
 
     print("{0:4s} {1:9s}       {2:9s}".format("Iter", " Epot", " fmax"))
     step = [0]
-    opt.step(lambda: closure(step))
+    for i in range(steps):
+        opt.step(lambda: closure(step))
 
-    system.pos[:] = pos.detach().requires_grad_(False)
+    # Update system with reshaped positions
+    system.pos[:] = pos_flat.detach().view(1, -1, 3).requires_grad_(False)
+
+    energies = np.concatenate(energies, axis=2)
+    return energies
 
 
 def _get_energy_forces(forces, system, pos, getForces=True):
