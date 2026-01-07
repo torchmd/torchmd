@@ -31,16 +31,10 @@ repository = "https://github.com/torchmd/torchmd/"
 [tool.setuptools.packages.find]
 include = ["torchmd*", "LICENSE.md"]
 
-[tool.versioneer]
-VCS = "git"
-style = "pep440"
-versionfile_source = "torchmd/_version.py"
-versionfile_build = "torchmd/_version.py"
-tag_prefix = ""
-parentdir_prefix = "torchmd-"
+[tool.setuptools_scm]
 
 [build-system]
-requires = ["setuptools", "toml", "versioneer[toml]==0.28"]
+requires = ["setuptools>=78", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [dependency-groups]
