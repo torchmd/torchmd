@@ -1,6 +1,10 @@
-name: Test code and publish package
+name: Test
 
-on: [push]
+on:
+  workflow_dispatch:
+  workflow_call:
+  schedule:
+    - cron: "0 0 * * 0" # Run every Sunday at 0:00
 
 jobs:
   test:
