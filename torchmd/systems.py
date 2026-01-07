@@ -45,13 +45,19 @@ class System:
                 f"Positions shape must be (natoms, 3, 1) or (natoms, 3, nreplicas) but were given {pos.shape} instead"
             )
 
-        atom_pos = np.transpose(pos, (2, 0, 1))
-        if self.nreplicas > 1 and atom_pos.shape[0] != self.nreplicas:
-            atom_pos = np.repeat(atom_pos[0][None, :], self.nreplicas, axis=0)
+        if isinstance(pos, np.ndarray):
+            pos = torch.tensor(pos, dtype=self.pos.dtype, device=self.pos.device)
+        else:
+            pos = pos.clone().detach().type(self.pos.dtype).to(self.pos.device)
 
-        self.pos[:] = torch.tensor(
-            atom_pos, dtype=self.pos.dtype, device=self.pos.device
-        )
+        if pos.ndim == 2:
+            pos = pos.unsqueeze(2)
+
+        atom_pos = torch.permute(pos, (2, 0, 1))
+        if self.nreplicas > 1 and atom_pos.shape[0] != self.nreplicas:
+            atom_pos = atom_pos[0].unsqueeze(0).repeat(self.nreplicas, 1, 1)
+
+        self.pos[:] = atom_pos
 
     def set_velocities(self, vel):
         if vel.shape != (self.nreplicas, self.natoms, 3):
