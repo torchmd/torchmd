@@ -39,9 +39,9 @@ We recommend installing TorchMD in a new python environment ideally through the 
 mamba create -n torchmd
 mamba activate torchmd
 mamba install pytorch python=3.10 -c conda-forge
-pip install "torchmd[full]"
+pip install "torchmd[full]" --extra-index-url https://download.pytorch.org/whl/cu126
 # Instead of the full installation you can also choose to only install the bare minimum dependencies with
-pip install torchmd 
+pip install torchmd --extra-index-url https://download.pytorch.org/whl/cu126
 ```
 
 ## Examples
