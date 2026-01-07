@@ -42,7 +42,7 @@ class System:
     def set_positions(self, pos):
         if pos.shape[1] != 3:
             raise RuntimeError(
-                "Positions shape must be (natoms, 3, 1) or (natoms, 3, nreplicas)"
+                f"Positions shape must be (natoms, 3, 1) or (natoms, 3, nreplicas) but were given {pos.shape} instead"
             )
 
         atom_pos = np.transpose(pos, (2, 0, 1))

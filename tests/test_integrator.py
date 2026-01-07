@@ -305,3 +305,101 @@ def test_integrator_with_batches():
 
     # Test that potential energy is returned correctly
     assert pot == 2.5
+
+
+def test_integrator_deterministic_two_atoms():
+    """Test Integrator with two atoms, no temperature, deterministic forces"""
+    # Create system with 2 atoms, 1 replica
+    natoms = 2
+    nreplicas = 1
+    device = "cpu"
+    precision = torch.float32
+
+    system = System(natoms, nreplicas, precision, device)
+
+    # Set initial positions: atom 0 at (0,0,0), atom 1 at (1,1,1)
+    initial_pos = torch.tensor([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], dtype=precision)
+    system.set_positions(initial_pos[:, :, None])
+
+    # Set initial velocities: both atoms moving with velocity (0.1, 0.2, 0.3)
+    initial_vel = torch.tensor([[[0.1, 0.2, 0.3], [0.1, 0.2, 0.3]]], dtype=precision)
+    system.set_velocities(initial_vel)
+
+    # Set masses: atom 0 has mass 1.0, atom 1 has mass 2.0
+    masses = torch.tensor([1.0, 2.0], dtype=precision)
+    system.set_masses(masses)
+
+    # Define constant forces that don't depend on position
+    # Force on atom 0: (1.0, 2.0, 3.0), atom 1: (-0.5, 1.5, -2.5)
+    constant_forces = torch.tensor(
+        [[[1.0, 2.0, 3.0], [-0.5, 1.5, -2.5]]], dtype=precision, device=device
+    )
+
+    # Create mock forces object that returns constant forces
+    class ConstantForces:
+        def __init__(self, forces):
+            self.constant_forces = forces
+
+        def compute(self, pos, box, forces_tensor):
+            # Always return the same forces regardless of position
+            forces_tensor.copy_(self.constant_forces)
+            return 0.0  # potential energy doesn't matter for this test
+
+    forces = ConstantForces(constant_forces)
+    timestep = 0.002  # ps (small timestep for accuracy)
+
+    # Initialize forces at the starting positions
+    forces.compute(system.pos, system.box, system.forces)
+
+    # Create integrator without temperature control
+    integrator = Integrator(system, forces, timestep, device, T=None)
+
+    # Store initial state
+    pos_before = system.pos.clone()
+    vel_before = system.vel.clone()
+
+    # Perform one integration step
+    Ekin, pot, T = integrator.step(niter=1)
+
+    # Calculate expected positions and velocities manually
+    dt = timestep / 48.88821  # Convert to internal time units
+
+    # Calculate accelerations
+    accel = constant_forces / system.masses.unsqueeze(0)  # (1, 2, 3)
+
+    # Velocity Verlet algorithm:
+    # 1. First half-step: update positions and velocities
+    # pos += vel * dt + 0.5 * accel * dt * dt
+    # vel += 0.5 * dt * accel
+    expected_pos = pos_before + vel_before * dt + 0.5 * accel * dt * dt
+
+    # 2. Forces are recomputed (but stay the same for constant forces)
+    # 3. Second half-step: update velocities
+    # vel += 0.5 * dt * accel
+    expected_vel = vel_before + accel * dt
+
+    # Check that final positions match expected
+    np.testing.assert_allclose(
+        system.pos.numpy(),
+        expected_pos.numpy(),
+        rtol=1e-6,
+        err_msg="Final positions do not match expected values",
+    )
+
+    # Check that final velocities match expected
+    np.testing.assert_allclose(
+        system.vel.numpy(),
+        expected_vel.numpy(),
+        rtol=1e-6,
+        err_msg="Final velocities do not match expected values",
+    )
+
+    # Verify that kinetic energy is calculated correctly
+    expected_kinetic = kinetic_energy(system.masses, system.vel)
+    np.testing.assert_allclose(Ekin, expected_kinetic.numpy().flatten(), rtol=1e-6)
+
+    # Verify temperature is calculated correctly
+    from torchmd.integrator import kinetic_to_temp
+
+    expected_temp = kinetic_to_temp(Ekin, natoms)
+    np.testing.assert_allclose(T, expected_temp, rtol=1e-6)
