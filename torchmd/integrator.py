@@ -102,17 +102,17 @@ class Integrator:
             self.natoms = len(self.forces.par.masses)
 
     def step(self, niter=1):
-        s = self.systems
+        systems = self.systems
         masses = self.forces.par.masses
 
         for _ in range(niter):
-            _first_VV(s.pos, s.vel, s.forces, masses, self.dt)
-            pot = self.forces.compute(s.pos, s.box, s.forces)
+            _first_VV(systems.pos, systems.vel, systems.forces, masses, self.dt)
+            pot = self.forces.compute(systems.pos, systems.box, systems.forces)
             if self.T:
-                langevin(s.vel, self.gamma, self.vcoeff, self.dt, self.device)
-            _second_VV(s.vel, s.forces, masses, self.dt)
+                langevin(systems.vel, self.gamma, self.vcoeff, self.dt, self.device)
+            _second_VV(systems.vel, systems.forces, masses, self.dt)
 
-        ke_result = kinetic_energy(masses, s.vel, self.batch)
+        ke_result = kinetic_energy(masses, systems.vel, self.batch)
         Ekin = ke_result.flatten().cpu().numpy()
         T = kinetic_to_temp(Ekin, self.natoms)
         return Ekin, pot, T
