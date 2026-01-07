@@ -10,42 +10,30 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest"]
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
-
-    defaults: # Needed for conda
-      run:
-        shell: bash -l {0}
+        python-version: ["3.13"]
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          lfs: true
-          submodules: true
+      - name: Check out
+        uses: actions/checkout@v5
 
-      - uses: conda-incubator/setup-miniconda@v3
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}
-          miniforge-version: latest
-          conda-remove-defaults: true
+
+      - name: Install the project
+        run: uv sync --all-extras --dev
 
       - name: Lint with flake8
         run: |
-          pip install flake8
           # stop the build if there are Python syntax errors or undefined names
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          uv run flake8 ./torchmdnet --count --select=E9,F63,F7,F82 --show-source --statistics
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+          uv run flake8 ./torchmdnet --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-      - name: Install test deps
-        run: |
-          conda install -y -q pytorch torchvision python=${{ matrix.python-version }} -c pytorch
-          conda install -y -q openmm parmed natsort -c conda-forge
-          pip install -U pip setuptools wheel
-          pip install .
-
-      - name: Test
-        run: |
-          python tests/test_torchmd.py
+      - name: Run tests
+        # For example, using `pytest`
+        run: uv run pytest tests
 
   deploypypi:
     if: startsWith(github.event.ref, 'refs/tags/')
@@ -56,7 +44,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-latest"]
-        python-version: ["3.9"]
+        python-version: ["3.13"]
 
     steps:
       - uses: actions/checkout@v4
