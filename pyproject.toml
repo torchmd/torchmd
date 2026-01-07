@@ -17,8 +17,9 @@ dependencies = [
     "moleculekit",
     "pandas",
     "networkx",
-    "scipy", # Only needed for minimizers
+    "scipy",         # Only needed for minimizers
     "parmed>=4.3.0",
+    "numpy<2",
 ]
 requires-python = ">=3.10"
 
@@ -43,7 +44,11 @@ requires = ["setuptools", "toml", "versioneer[toml]==0.28"]
 build-backend = "setuptools.build_meta"
 
 [dependency-groups]
-dev = ["pytest>=9.0.2"]
+dev = [
+    "natsort>=8.4.0",
+    "openmm>=8.4.0.post2",
+    "pytest>=9.0.2",
+]
 
 [tool.uv.sources]
 torch = [
