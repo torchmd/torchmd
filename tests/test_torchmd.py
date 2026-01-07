@@ -9,7 +9,11 @@ from torchmd.forcefields.forcefield import ForceField
 from torchmd.parameters import Parameters
 from torchmd.forces import Forces
 import torch
-import unittest
+import pytest
+import os
+from glob import glob
+
+curr_dir = os.path.dirname(os.path.abspath(__file__))
 
 
 def disableDispersionCorrection(system):
@@ -47,18 +51,18 @@ def openmm_energy(prm, structure, coords, box=None, cutoff=None, switch_dist=Non
             system = structure.createSystem(
                 nonbondedMethod=app.CutoffPeriodic,
                 nonbondedCutoff=0 if cutoff is None else cutoff * unit.angstrom,
-                switchDistance=0
-                if switch_dist is None
-                else switch_dist * unit.angstrom,
+                switchDistance=(
+                    0 if switch_dist is None else switch_dist * unit.angstrom
+                ),
             )
         else:
             system = structure.createSystem(
                 prm,
                 nonbondedMethod=app.CutoffPeriodic,
                 nonbondedCutoff=0 if cutoff is None else cutoff * unit.angstrom,
-                switchDistance=0
-                if switch_dist is None
-                else switch_dist * unit.angstrom,
+                switchDistance=(
+                    0 if switch_dist is None else switch_dist * unit.angstrom
+                ),
             )
         system.setDefaultPeriodicBoxVectors(a, b, c)
     else:
@@ -290,280 +294,104 @@ forcesOMM = [
 ]
 
 
-class _TestTorchMD(unittest.TestCase):
-    def test_torchmd(self):
-        from natsort import natsorted
-        from moleculekit.molecule import Molecule
-        from glob import glob
-        import parmed
-        import os
-        import logging
+@pytest.mark.parametrize("folder", glob(os.path.join(curr_dir, "data", "*", "")))
+def test_torchmd(folder):
+    from natsort import natsorted
+    from moleculekit.molecule import Molecule
+    from glob import glob
+    import parmed
+    import os
+    import logging
 
-        logging.getLogger("parmed.structure").setLevel("ERROR")
+    logging.getLogger("parmed.structure").setLevel("ERROR")
 
-        terms = [
-            "bonds",
-            "angles",
-            "dihedrals",
-            "impropers",
-            "1-4",
-            "electrostatics",
-            "lj",
+    terms = [
+        "bonds",
+        "angles",
+        "dihedrals",
+        "impropers",
+        "1-4",
+        "electrostatics",
+        "lj",
+    ]
+
+    testname = os.path.basename(os.path.abspath(folder))
+    if testname == "thrombin-ligand-amber":
+        abstol = 1e-1
+    elif testname == "waterbox":
+        abstol = 1e-3
+    elif testname == "prod_alanine_dipeptide_amber":
+        abstol = 1.1e-3
+    elif testname in ["2ions", "3ions"]:
+        abstol = 1e-3  # I don't have nbfix
+    else:
+        abstol = 1e-4
+
+    prmtopFile = glob(os.path.join(folder, "*.prmtop"))
+    psfFile = glob(os.path.join(folder, "*.psf"))
+    pdbFile = glob(os.path.join(folder, "*.pdb"))
+    xtcFile = glob(os.path.join(folder, "*.xtc"))
+    xscFile = glob(os.path.join(folder, "*.xsc"))
+    coorFile = glob(os.path.join(folder, "*.coor"))
+    if len(glob(os.path.join(folder, "*.prm"))):
+        prmFiles = [
+            fixParameters(glob(os.path.join(folder, "*.prm"))[0]),
         ]
-        for d in glob(os.path.join("tests/data", "*", "")):
-            with self.subTest(system=d):
-                print("\nRunning test:", d)
-                testname = os.path.basename(os.path.abspath(d))
-                if testname == "thrombin-ligand-amber":
-                    abstol = 1e-1
-                elif testname == "waterbox":
-                    abstol = 1e-3
-                elif testname == "prod_alanine_dipeptide_amber":
-                    abstol = 1.1e-3
-                elif testname in ["2ions", "3ions"]:
-                    abstol = 1e-3  # I don't have nbfix
-                else:
-                    abstol = 1e-4
+    rtfFile = glob(os.path.join(folder, "*.rtf"))
+    if len(rtfFile):
+        prmFiles.append(rtfFile[0])
+    else:
+        rtfFile = None
 
-                prmtopFile = glob(os.path.join(d, "*.prmtop"))
-                psfFile = glob(os.path.join(d, "*.psf"))
-                pdbFile = glob(os.path.join(d, "*.pdb"))
-                xtcFile = glob(os.path.join(d, "*.xtc"))
-                xscFile = glob(os.path.join(d, "*.xsc"))
-                coorFile = glob(os.path.join(d, "*.coor"))
-                if len(glob(os.path.join(d, "*.prm"))):
-                    prmFiles = [
-                        fixParameters(glob(os.path.join(d, "*.prm"))[0]),
-                    ]
-                rtfFile = glob(os.path.join(d, "*.rtf"))
-                if len(rtfFile):
-                    prmFiles.append(rtfFile[0])
-                else:
-                    rtfFile = None
+    if len(psfFile):
+        mol = Molecule(psfFile[0])
+    elif len(prmtopFile):
+        mol = Molecule(prmtopFile[0])
+    if len(xtcFile):
+        mol.read(natsorted(xtcFile))
+    elif len(coorFile):
+        mol.read(coorFile)
+    elif len(pdbFile):
+        mol.read(pdbFile[0])
+    else:
+        raise RuntimeError("No PDB or XTC")
+    if len(xscFile):
+        mol.read(xscFile)
 
-                if len(psfFile):
-                    mol = Molecule(psfFile[0])
-                elif len(prmtopFile):
-                    mol = Molecule(prmtopFile[0])
-                if len(xtcFile):
-                    mol.read(natsorted(xtcFile))
-                elif len(coorFile):
-                    mol.read(coorFile)
-                elif len(pdbFile):
-                    mol.read(pdbFile[0])
-                else:
-                    raise RuntimeError("No PDB or XTC")
-                if len(xscFile):
-                    mol.read(xscFile)
-
-                coords = mol.coords
-                coords = coords[:, :, 0].squeeze()
-                rfa = False
-                cutoff = None
-                switch_dist = None
-                if not np.all(mol.box == 0):
-                    cutoff = np.min(mol.box) / 2 - 0.01
-                    switch_dist = 6
-                    rfa = True
-                    if testname == "prod_alanine_dipeptide_amber":
-                        cutoff = 9
-                        switch_dist = 7.5
-                        rfa = True
-
-                precision = torch.double
-                device = "cpu"
-
-                chargebackup = mol.charge.copy()
-
-                for forceTMD, forceOMM in zip(forcesTMD, forcesOMM):
-                    mol.charge = chargebackup.copy()
-                    if len(psfFile):
-                        struct = parmed.charmm.CharmmPsfFile(psfFile[0])
-                        prm = parmed.charmm.CharmmParameterSet(*prmFiles)
-                        keepForces(prm, struct, mol, forces=forceOMM)
-                    elif len(prmtopFile):
-                        struct = parmed.load_file(prmtopFile[0])
-                        prm = parmed.amber.AmberParameterSet().from_structure(struct)
-                        keepForces(prm, struct, mol, forces=forceOMM)
-                        keepForcesAmber(struct, mol, forces=forceOMM)
-
-                    if d == "tests/data/waterbox/":
-                        # I don't support multi-frame evaluation yet
-                        mol.dropFrames(keep=0)
-
-                    ff = ForceField.create(mol, prm)
-                    parameters = Parameters(ff, mol, precision=precision, device=device)
-                    system = getTorchMDSystem(mol, device, precision)
-                    forces = Forces(
-                        parameters,
-                        terms=terms,
-                        cutoff=cutoff,
-                        switch_dist=switch_dist,
-                        rfa=rfa,
-                    )
-                    energies = forces.compute(
-                        system.pos, system.box, system.forces, returnDetails=True
-                    )[0]
-                    forces = system.forces.cpu().detach().numpy()[0].squeeze()
-
-                    omm_energies, omm_forces = openmm_energy(
-                        prm,
-                        struct,
-                        coords,
-                        box=mol.box,
-                        cutoff=cutoff,
-                        switch_dist=switch_dist,
-                    )
-                    ediff = compareEnergies(
-                        energies,
-                        omm_energies,
-                        abstol=abstol,
-                        compare=forceTMD,
-                        verbose=False,
-                    )
-                    print(
-                        f"  {forceOMM} Energy diff: {ediff:.3e} Force diff: {compareForces(forces, omm_forces):.3e}"
-                    )
-
-                if len(psfFile):
-                    struct = parmed.charmm.CharmmPsfFile(psfFile[0])
-                    prm = parmed.charmm.CharmmParameterSet(*prmFiles)
-                    keepForces(prm, struct, mol)
-                elif len(prmtopFile):
-                    struct = parmed.load_file(prmtopFile[0])
-                    prm = parmed.amber.AmberParameterSet().from_structure(struct)
-                    keepForces(prm, struct, mol)
-                    keepForcesAmber(struct, mol)
-
-                ff = ForceField.create(mol, prm)
-                parameters = Parameters(ff, mol, precision=precision, device=device)
-                system = getTorchMDSystem(mol, device, precision)
-                forces = Forces(
-                    parameters,
-                    terms=terms,
-                    cutoff=cutoff,
-                    switch_dist=switch_dist,
-                    rfa=rfa,
-                )
-                myenergies = forces.compute(
-                    system.pos, system.box, system.forces, returnDetails=True
-                )[0]
-                forces = system.forces.cpu().detach().numpy()[0].squeeze()
-
-                omm_energies, omm_forces = openmm_energy(
-                    prm,
-                    struct,
-                    coords,
-                    box=mol.box,
-                    cutoff=cutoff,
-                    switch_dist=switch_dist,
-                )
-                ediff = compareEnergies(myenergies, omm_energies, abstol=abstol)
-                print(
-                    f"All forces. Total energy: {np.sum(list(myenergies.values())):.3f} Energy diff: {ediff:.3e} Force diff {compareForces(forces, omm_forces):.3e}"
-                )
-
-    def test_replicas(self):
-        from moleculekit.molecule import Molecule
-        from torchmd.systems import System
-        import os
-
-        n_replicas = 2
-
-        testdir = os.path.join("tests/data", "prod_alanine_dipeptide_amber")
-        mol = Molecule(os.path.join(testdir, "structure.prmtop"))
-        mol.read(os.path.join(testdir, "input.coor"))
-        struct = parmed.load_file(os.path.join(testdir, "structure.prmtop"))
-        prm = parmed.amber.AmberParameterSet().from_structure(struct)
-        terms = [
-            "bonds",
-            "angles",
-            "dihedrals",
-            "impropers",
-            "1-4",
-            "electrostatics",
-            "lj",
-        ]
-        cutoff = 9
-        switch_dist = 7.5
+    coords = mol.coords
+    coords = coords[:, :, 0].squeeze()
+    rfa = False
+    cutoff = None
+    switch_dist = None
+    if not np.all(mol.box == 0):
+        cutoff = np.min(mol.box) / 2 - 0.01
+        switch_dist = 6
         rfa = True
-        precision = torch.double
-        device = "cpu"
-        ff = ForceField.create(mol, prm)
-        parameters = Parameters(ff, mol, precision=precision, device=device)
+        if testname == "prod_alanine_dipeptide_amber":
+            cutoff = 9
+            switch_dist = 7.5
+            rfa = True
 
-        system = System(mol.numAtoms, n_replicas, precision, device)
-        system.set_positions(mol.coords)
-        system.set_box(mol.box)
+    precision = torch.double
+    device = "cpu"
 
-        forces = Forces(
-            parameters,
-            terms=terms,
-            cutoff=cutoff,
-            switch_dist=switch_dist,
-            rfa=rfa,
-        )
-        Epot = forces.compute(
-            system.pos.detach().requires_grad_(True),
-            system.box,
-            system.forces,
-            returnDetails=False,
-            explicit_forces=False,
-        )
-        assert len(Epot) == 2
-        assert np.abs(Epot[0] + 1722.3569) < 1e-4 and np.abs(Epot[1] + 1722.3569) < 1e-4
+    chargebackup = mol.charge.copy()
 
-    # def test_cg(self):
-    #     from torchmd.run import get_args, setup
+    for forceTMD, forceOMM in zip(forcesTMD, forcesOMM):
+        mol.charge = chargebackup.copy()
+        if len(psfFile):
+            struct = parmed.charmm.CharmmPsfFile(psfFile[0])
+            prm = parmed.charmm.CharmmParameterSet(*prmFiles)
+            keepForces(prm, struct, mol, forces=forceOMM)
+        elif len(prmtopFile):
+            struct = parmed.load_file(prmtopFile[0])
+            prm = parmed.amber.AmberParameterSet().from_structure(struct)
+            keepForces(prm, struct, mol, forces=forceOMM)
+            keepForcesAmber(struct, mol, forces=forceOMM)
 
-    #     args = get_args(["--conf", "tests/cg/conf.yaml"])
-    #     _, system, forces = setup(args)
-
-    #     reference = [
-    #         {
-    #             "bonds": 6.054834888544265,
-    #             "angles": 2.4312314931533345,
-    #             "repulsioncg": 3.9667452882420924,
-    #             "external": -76.44873809814453,
-    #         },
-    #         {
-    #             "bonds": 6.054834888544265,
-    #             "angles": 2.4312314931533345,
-    #             "repulsioncg": 3.9667452882420924,
-    #             "external": -76.44874572753906,
-    #         },
-    #     ]
-    #     Epot = forces.compute(system.pos, system.box, system.forces, returnDetails=True)
-    #     for i in range(len(reference)):
-    #         for term in reference[i]:
-    #             if abs(Epot[i][term] - reference[i][term]) > 1e-5:
-    #                 raise RuntimeError(
-    #                     f"Difference in energies detected for term {term}: {Epot[i][term]} vs reference {reference[i][term]}"
-    #                 )
-
-    def test_vmap(self):
-        from moleculekit.molecule import Molecule
-        import os
-
-        testdir = os.path.join("tests/data", "prod_alanine_dipeptide_amber")
-        mol = Molecule(os.path.join(testdir, "structure.prmtop"))
-        mol.read(os.path.join(testdir, "input.coor"))
-        struct = parmed.load_file(os.path.join(testdir, "structure.prmtop"))
-        prm = parmed.amber.AmberParameterSet().from_structure(struct)
-        terms = [
-            "bonds",
-            "angles",
-            "dihedrals",
-            "impropers",
-            "1-4",
-            "electrostatics",
-            "lj",
-        ]
-        cutoff = None # cutoff not supported yet because of dynamic shape in _filter_by_cutoff
-        switch_dist = 7.5
-        rfa = False # rfa needs valid cutoff
-        precision = torch.double
-        device = "cpu"
+        if folder == os.path.join(curr_dir, "data", "waterbox", ""):
+            # I don't support multi-frame evaluation yet
+            mol.dropFrames(keep=0)
 
         ff = ForceField.create(mol, prm)
         parameters = Parameters(ff, mol, precision=precision, device=device)
@@ -575,28 +403,203 @@ class _TestTorchMD(unittest.TestCase):
             switch_dist=switch_dist,
             rfa=rfa,
         )
+        energies = forces.compute(
+            system.pos, system.box, system.forces, returnDetails=True
+        )[0]
+        forces = system.forces.cpu().detach().numpy()[0].squeeze()
 
-        batch_size = 10
-        positions = torch.stack([system.pos]*batch_size, dim=0)
-        positions.requires_grad = True
-        
-        Epot = torch.vmap(forces.compute, in_dims=(0, ))(
-            positions,
-            box=system.box,
-            forces=None,
-            returnDetails=False,
-            explicit_forces=False,
-            calculateForces=False,
-            toNumpy=False,
+        omm_energies, omm_forces = openmm_energy(
+            prm,
+            struct,
+            coords,
+            box=mol.box,
+            cutoff=cutoff,
+            switch_dist=switch_dist,
+        )
+        ediff = compareEnergies(
+            energies,
+            omm_energies,
+            abstol=abstol,
+            compare=forceTMD,
+            verbose=False,
+        )
+        print(
+            f"  {forceOMM} Energy diff: {ediff:.3e} Force diff: {compareForces(forces, omm_forces):.3e}"
         )
 
-        Epot.sum().backward()
-        forces = -positions.grad
- 
-        assert Epot.shape == (batch_size, 1)
-        assert forces.shape == positions.shape
-        assert (Epot[0] + 1768.8915).abs() < 1e-4 and (Epot[1] + 1768.8915).abs() < 1e-4
+    if len(psfFile):
+        struct = parmed.charmm.CharmmPsfFile(psfFile[0])
+        prm = parmed.charmm.CharmmParameterSet(*prmFiles)
+        keepForces(prm, struct, mol)
+    elif len(prmtopFile):
+        struct = parmed.load_file(prmtopFile[0])
+        prm = parmed.amber.AmberParameterSet().from_structure(struct)
+        keepForces(prm, struct, mol)
+        keepForcesAmber(struct, mol)
+
+    ff = ForceField.create(mol, prm)
+    parameters = Parameters(ff, mol, precision=precision, device=device)
+    system = getTorchMDSystem(mol, device, precision)
+    forces = Forces(
+        parameters,
+        terms=terms,
+        cutoff=cutoff,
+        switch_dist=switch_dist,
+        rfa=rfa,
+    )
+    myenergies = forces.compute(
+        system.pos, system.box, system.forces, returnDetails=True
+    )[0]
+    forces = system.forces.cpu().detach().numpy()[0].squeeze()
+
+    omm_energies, omm_forces = openmm_energy(
+        prm,
+        struct,
+        coords,
+        box=mol.box,
+        cutoff=cutoff,
+        switch_dist=switch_dist,
+    )
+    ediff = compareEnergies(myenergies, omm_energies, abstol=abstol)
+    print(
+        f"All forces. Total energy: {np.sum(list(myenergies.values())):.3f} Energy diff: {ediff:.3e} Force diff {compareForces(forces, omm_forces):.3e}"
+    )
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
+def test_replicas():
+    from moleculekit.molecule import Molecule
+    from torchmd.systems import System
+    import os
+
+    n_replicas = 2
+
+    testdir = os.path.join(curr_dir, "data", "prod_alanine_dipeptide_amber")
+    mol = Molecule(os.path.join(testdir, "structure.prmtop"))
+    mol.read(os.path.join(testdir, "input.coor"))
+    struct = parmed.load_file(os.path.join(testdir, "structure.prmtop"))
+    prm = parmed.amber.AmberParameterSet().from_structure(struct)
+    terms = [
+        "bonds",
+        "angles",
+        "dihedrals",
+        "impropers",
+        "1-4",
+        "electrostatics",
+        "lj",
+    ]
+    cutoff = 9
+    switch_dist = 7.5
+    rfa = True
+    precision = torch.double
+    device = "cpu"
+    ff = ForceField.create(mol, prm)
+    parameters = Parameters(ff, mol, precision=precision, device=device)
+
+    system = System(mol.numAtoms, n_replicas, precision, device)
+    system.set_positions(mol.coords)
+    system.set_box(mol.box)
+
+    forces = Forces(
+        parameters,
+        terms=terms,
+        cutoff=cutoff,
+        switch_dist=switch_dist,
+        rfa=rfa,
+    )
+    Epot = forces.compute(
+        system.pos.detach().requires_grad_(True),
+        system.box,
+        system.forces,
+        returnDetails=False,
+        explicit_forces=False,
+    )
+    assert len(Epot) == 2
+    assert np.abs(Epot[0] + 1722.3569) < 1e-4 and np.abs(Epot[1] + 1722.3569) < 1e-4
+
+
+# def test_cg(self):
+#     from torchmd.run import get_args, setup
+
+#     args = get_args(["--conf", "tests/cg/conf.yaml"])
+#     _, system, forces = setup(args)
+
+#     reference = [
+#         {
+#             "bonds": 6.054834888544265,
+#             "angles": 2.4312314931533345,
+#             "repulsioncg": 3.9667452882420924,
+#             "external": -76.44873809814453,
+#         },
+#         {
+#             "bonds": 6.054834888544265,
+#             "angles": 2.4312314931533345,
+#             "repulsioncg": 3.9667452882420924,
+#             "external": -76.44874572753906,
+#         },
+#     ]
+#     Epot = forces.compute(system.pos, system.box, system.forces, returnDetails=True)
+#     for i in range(len(reference)):
+#         for term in reference[i]:
+#             if abs(Epot[i][term] - reference[i][term]) > 1e-5:
+#                 raise RuntimeError(
+#                     f"Difference in energies detected for term {term}: {Epot[i][term]} vs reference {reference[i][term]}"
+#                 )
+
+
+def test_vmap():
+    from moleculekit.molecule import Molecule
+    import os
+
+    testdir = os.path.join(curr_dir, "data", "prod_alanine_dipeptide_amber")
+    mol = Molecule(os.path.join(testdir, "structure.prmtop"))
+    mol.read(os.path.join(testdir, "input.coor"))
+    struct = parmed.load_file(os.path.join(testdir, "structure.prmtop"))
+    prm = parmed.amber.AmberParameterSet().from_structure(struct)
+    terms = [
+        "bonds",
+        "angles",
+        "dihedrals",
+        "impropers",
+        "1-4",
+        "electrostatics",
+        "lj",
+    ]
+    cutoff = (
+        None  # cutoff not supported yet because of dynamic shape in _filter_by_cutoff
+    )
+    switch_dist = 7.5
+    rfa = False  # rfa needs valid cutoff
+    precision = torch.double
+    device = "cpu"
+
+    ff = ForceField.create(mol, prm)
+    parameters = Parameters(ff, mol, precision=precision, device=device)
+    system = getTorchMDSystem(mol, device, precision)
+    forces = Forces(
+        parameters,
+        terms=terms,
+        cutoff=cutoff,
+        switch_dist=switch_dist,
+        rfa=rfa,
+    )
+
+    batch_size = 10
+    positions = torch.stack([system.pos] * batch_size, dim=0)
+    positions.requires_grad = True
+
+    Epot = torch.vmap(forces.compute, in_dims=(0,))(
+        positions,
+        box=system.box,
+        forces=None,
+        returnDetails=False,
+        explicit_forces=False,
+        calculateForces=False,
+        toNumpy=False,
+    )
+
+    Epot.sum().backward()
+    forces = -positions.grad
+
+    assert Epot.shape == (batch_size, 1)
+    assert forces.shape == positions.shape
+    assert (Epot[0] + 1768.8915).abs() < 1e-4 and (Epot[1] + 1768.8915).abs() < 1e-4
